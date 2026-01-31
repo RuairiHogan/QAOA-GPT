@@ -303,6 +303,8 @@ def tokenize_graph_and_circuit(graph, op_indices, betas, gammas):
         tokens.append(gamma)               # γ then β (paper ordering)
         tokens.append(beta)
 
+    tokens.append("<end_of_circuit>")
+
     return tokens
 
 def ar_tier(ar):

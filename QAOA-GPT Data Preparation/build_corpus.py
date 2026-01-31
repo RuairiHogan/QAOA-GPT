@@ -13,7 +13,7 @@ with open(INPUT, "r") as fin, open(OUTPUT, "w") as fout:
         tokens = entry["tokens"]
 
         # prepend tier token
-        full_sequence = [tier_token] + tokens
+        full_sequence = [tier_token] + tokens + ["<end_of_circuit>"]
 
         fout.write(" ".join(full_sequence) + "\n")
 

@@ -3,7 +3,7 @@ import time
 import networkx as nx
 
 NUM_GRAPHS = 1000
-NUM_QUBITS = 5
+NUM_QUBITS = 7
 EDGE_PROB_RANGE = (0.5, 0.9)
 OUT_FILE = "test_graphs.txt"
 

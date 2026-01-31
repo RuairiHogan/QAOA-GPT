@@ -1048,6 +1048,7 @@
 97
 98
 <bos>
+<end_of_circuit>
 <end_of_graph>
 <new_layer_1>
 <new_layer_2>

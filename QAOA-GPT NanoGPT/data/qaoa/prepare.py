@@ -7,8 +7,6 @@ dataset = "qaoa"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 data_dir = BASE_DIR 
 
-train_file = os.path.join(data_dir, "train.txt")
-val_file   = os.path.join(data_dir, "val.txt")
 vocab_file = os.path.join(data_dir, "vocab.txt")
 
 # ----------------------------
@@ -32,15 +30,6 @@ def tokenize(path):
     ids = [stoi[t] for t in tokens]
     return np.array(ids, dtype=np.uint16)
 
-# ----------------------------
-# Write binaries
-# ----------------------------
-train_ids = tokenize(train_file)
-train_ids.tofile(os.path.join(data_dir, "train.bin"))
-
-if os.path.exists(val_file):
-    val_ids = tokenize(val_file)
-    val_ids.tofile(os.path.join(data_dir, "val.bin"))
 
 # ----------------------------
 # WRITE META (THIS IS WHAT YOU WERE MISSING)
