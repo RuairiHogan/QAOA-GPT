@@ -10,8 +10,8 @@ log_interval = 20
 #vocab_size = 1061
 
 # Training length
-max_iters = 16000         # good starting point (was 20000)
-lr_decay_iters = 16000  # was 20000
+max_iters = 10000         # good starting point (was 20000)
+lr_decay_iters = 10000  # was 20000
 warmup_iters = 100
 
 init_from = 'scratch' # 'scratch' or 'resume' or 'gpt2*'
