@@ -4,13 +4,16 @@ import pickle
 import random
 
 # -------------------------------------------------
-# CONFIG — CHANGE THESE
+# CONFIG
 # -------------------------------------------------
 DATASET_DIR = "data/qaoa"
-INPUT_TXT   = "../QAOA-GPT Data Preparation/train.txt"          # one circuit per line
-GRAPH_EMB   = "../QAOA-GPT Data Preparation/graph_embeddings.npy"  # already exists
-TRAIN_FRAC  = 0.9                     # 90/10 split
+INPUT_TXT   = "../QAOA-GPT Data Preparation/train.txt"
+GRAPH_EMB   = "../QAOA-GPT Data Preparation/graph_embeddings.npy"
+TRAIN_FRAC  = 0.9
 SEED        = 1337
+
+PAD_TOKEN = "<pad>"
+EOS_TOKEN = "<end_of_circuit>"
 
 # -------------------------------------------------
 # LOAD TOKENIZER
@@ -22,10 +25,42 @@ with open(meta_path, "rb") as f:
 stoi = meta["stoi"]
 itos = meta["itos"]
 
-assert "<end_of_circuit>" in stoi, \
+# -------------------------------------------------
+# ADD PAD TOKEN (ID = 0)
+# -------------------------------------------------
+if PAD_TOKEN not in stoi:
+    print("Adding <pad> token to tokenizer")
+
+    # shift all existing tokens up by +1
+    stoi = {tok: idx + 1 for tok, idx in stoi.items()}
+    itos = {idx + 1: tok for idx, tok in itos.items()}
+
+    stoi[PAD_TOKEN] = 0
+    itos[0] = PAD_TOKEN
+
+# sanity
+assert stoi[PAD_TOKEN] == 0
+
+# -------------------------------------------------
+# EOS CHECK
+# -------------------------------------------------
+assert EOS_TOKEN in stoi, \
     "Tokenizer must contain <end_of_circuit> token"
 
-EOS_ID = stoi["<end_of_circuit>"]
+EOS_ID = stoi[EOS_TOKEN]
+PAD_ID = stoi[PAD_TOKEN]
+
+# -------------------------------------------------
+# SAVE UPDATED TOKENIZER
+# -------------------------------------------------
+meta["stoi"] = stoi
+meta["itos"] = itos
+
+with open(meta_path, "wb") as f:
+    pickle.dump(meta, f)
+
+print(f"Tokenizer vocab size: {len(stoi)}")
+print(f"PAD_ID={PAD_ID}, EOS_ID={EOS_ID}")
 
 # -------------------------------------------------
 # LOAD DATA
@@ -45,12 +80,16 @@ print(f"Loaded {len(lines)} circuits")
 # -------------------------------------------------
 def tokenize_line(line: str) -> np.ndarray:
     tokens = []
+
     for tok in line.split():
         if tok not in stoi:
             raise ValueError(f"Unknown token: {tok}")
         tokens.append(stoi[tok])
 
-    # enforce EOS at the end
+    if len(tokens) == 0:
+        raise ValueError("Empty token sequence")
+
+    # enforce exactly one EOS at the end
     if tokens[-1] != EOS_ID:
         tokens.append(EOS_ID)
 
@@ -61,12 +100,13 @@ all_seqs = [tokenize_line(line) for line in lines]
 # -------------------------------------------------
 # SANITY CHECKS
 # -------------------------------------------------
-# each sequence must have exactly one EOS at the end
 for i, seq in enumerate(all_seqs):
     if seq[-1] != EOS_ID:
         raise RuntimeError(f"Sequence {i} does not end with EOS")
     if (seq == EOS_ID).sum() != 1:
         raise RuntimeError(f"Sequence {i} has multiple EOS tokens")
+    if (seq == PAD_ID).any():
+        raise RuntimeError(f"Sequence {i} contains PAD tokens (should not)")
 
 print("✓ EOS sanity checks passed")
 
@@ -88,6 +128,19 @@ val_seqs   = [all_seqs[i] for i in val_idx]
 
 train_graph_emb = graph_emb[train_idx]
 val_graph_emb   = graph_emb[val_idx]
+
+# -------------------------------------------------
+# FINAL SANITY CHECKS
+# -------------------------------------------------
+assert len(train_seqs) == len(train_graph_emb)
+assert len(val_seqs) == len(val_graph_emb)
+
+# ensure PAD never appears in stored sequences
+for seq in train_seqs + val_seqs:
+    if (seq == PAD_ID).any():
+        raise RuntimeError("PAD token found in stored sequences")
+
+print("✓ Dataset sanity checks passed")
 
 # -------------------------------------------------
 # SAVE OUTPUT FILES
@@ -113,6 +166,6 @@ np.save(
 
 print("✓ Dataset written:")
 print(f"  train_seqs.npy        ({len(train_seqs)})")
-print(f"  train_graph_emb.npy   ({train_graph_emb.shape})")
+print(f"  train_graph_emb.npy   {train_graph_emb.shape}")
 print(f"  val_seqs.npy          ({len(val_seqs)})")
-print(f"  val_graph_emb.npy     ({val_graph_emb.shape})")
+print(f"  val_graph_emb.npy     {val_graph_emb.shape}")

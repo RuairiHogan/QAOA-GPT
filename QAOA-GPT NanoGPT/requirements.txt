@@ -1,12 +1,7 @@
-pickle
-numpy
 torch
-tqdm
+numpy
 transformers
 datasets
-scipy
-wandb
-matplotlib
-pandas
-networkx
 tiktoken
+wandb
+tqdm

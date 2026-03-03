@@ -1,11 +1,10 @@
 import torch
 import pickle
-import csv
 import os
 from datetime import datetime
 import numpy as np
 
-from model import QAOAgpt, QAOAConfig
+from qaoa_model import QAOAgpt, QAOAConfig
 
 # ---------------------------------------------------
 # CONFIG
@@ -27,11 +26,12 @@ data_dir = "data/qaoa"
 
 device = "cpu"
 
-max_new_tokens = 120
-temperature = 0.8
-top_k = 50
+max_new_tokens = 60
+temperature = 0.5
+top_k = 20
 
-STOP_TOKEN = "<bos>"   # stop if model tries to start a new graph
+# stop at EOS, not BOS
+STOP_TOKEN = "<end_of_circuit>"
 
 # ---------------------------------------------------
 # LOAD TOKENIZER
@@ -87,15 +87,14 @@ with open(INPUT_FILE, "r", encoding="utf-8") as fin, \
      open(OUTPUT_FILE, "w", encoding="utf-8") as fout:
 
     for idx, line in enumerate(fin):
-        
+
         tokens = line.strip().split()
         tokens = [t for t in tokens if not t.startswith("<seed=")]
-
 
         # Encode prompt
         x = encode(tokens)[None, :].to(device)
 
-        # Fetch corresponding graph embedding
+        # Graph embedding
         g = graph_embs[idx].unsqueeze(0).to(device)
 
         with torch.no_grad():
@@ -110,12 +109,12 @@ with open(INPUT_FILE, "r", encoding="utf-8") as fin, \
 
         out_tokens = decode(y[0].tolist())
 
-        # Stop if model tries to start a new graph
+        # HARD stop at first <end_of_circuit>
         trimmed = []
         for t in out_tokens:
-            if t == STOP_TOKEN and len(trimmed) > 0:
-                break
             trimmed.append(t)
+            if t == STOP_TOKEN:
+                break
 
         fout.write(" ".join(trimmed) + "\n")
         print(f"Generated circuit {idx + 1}")

@@ -363,26 +363,27 @@ class LayerNorm(nn.Module):
 
 
 class CausalSelfAttention(nn.Module):
-    def __init__(self, config: QAOAConfig):
+
+    def __init__(self, config):
         super().__init__()
         assert config.n_embd % config.n_head == 0
-
         self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias)
         self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
-
         self.attn_dropout = nn.Dropout(config.dropout)
         self.resid_dropout = nn.Dropout(config.dropout)
-
         self.n_head = config.n_head
         self.n_embd = config.n_embd
+        self.dropout = config.dropout
+        self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
 
-        self.register_buffer(
-            "bias",
-            torch.tril(torch.ones(config.block_size, config.block_size))
-                .view(1, 1, config.block_size, config.block_size)
-        )
+        if not self.flash:
+            self.register_buffer(
+                "bias",
+                torch.tril(torch.ones(config.block_size, config.block_size))
+                    .view(1, 1, config.block_size, config.block_size)
+            )
 
-    def forward(self, x):
+    def forward(self, x, padding_mask=None):
         B, T, C = x.size()
 
         q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
@@ -390,15 +391,39 @@ class CausalSelfAttention(nn.Module):
         q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
 
-        att = (q @ k.transpose(-2, -1)) / math.sqrt(k.size(-1))
-        att = att.masked_fill(self.bias[:, :, :T, :T] == 0, float("-inf"))
-        att = nn.functional.softmax(att, dim=-1)
-        att = self.attn_dropout(att)
+        # ---- CASE 1: no padding -> use flash attention
+        if padding_mask is None:
+            y = torch.nn.functional.scaled_dot_product_attention(
+                q, k, v,
+                dropout_p=self.dropout if self.training else 0,
+                is_causal=True
+            )
 
-        y = att @ v
+        # ---- CASE 2: padding present -> fall back to manual attention
+        else:
+            # padding_mask: (B,T) where True = PAD
+            att = (q @ k.transpose(-2, -1)) / math.sqrt(k.size(-1))  # (B,nh,T,T)
+
+            # causal mask
+            causal_mask = torch.tril(torch.ones(T, T, device=x.device)).bool()
+            att = att.masked_fill(~causal_mask, float("-inf"))
+
+            # padding mask (mask keys)
+            att = att.masked_fill(
+                padding_mask[:, None, None, :],
+                float("-inf")
+            )
+
+            att = torch.softmax(att, dim=-1)
+            att = self.attn_dropout(att)
+            y = att @ v
+
         y = y.transpose(1, 2).contiguous().view(B, T, C)
         y = self.resid_dropout(self.c_proj(y))
         return y
+
+
+
 
 
 class MLP(nn.Module):
@@ -417,17 +442,32 @@ class MLP(nn.Module):
 
 
 class Block(nn.Module):
-    def __init__(self, config: QAOAConfig):
+
+    def __init__(self, config):
         super().__init__()
         self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
         self.attn = CausalSelfAttention(config)
         self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
         self.mlp = MLP(config)
 
-    def forward(self, x):
-        x = x + self.attn(self.ln_1(x))
+    def forward(self, x, padding_mask=None):
+        x = x + self.attn(self.ln_1(x), padding_mask=padding_mask)
         x = x + self.mlp(self.ln_2(x))
         return x
+
+
+    # def forward(self, x, g=None, padding_mask=None):  # <<< CHANGED
+    #     if g is not None:
+    #         x = x + g
+    #     x = x + self.attn(self.ln_1(x), padding_mask=padding_mask)
+    #     x = x + self.mlp(self.ln_2(x))
+    #     return x
+
+
+    # def forward(self, x):
+    #     x = x + self.attn(self.ln_1(x))
+    #     x = x + self.mlp(self.ln_2(x))
+    #     return x
 
 
 # -------------------------
@@ -455,8 +495,18 @@ class QAOAgpt(GPT):
 
         # Graph embedding projection (FEATHER -> n_embd)
         self.graph_proj = None
+        self.graph_norm = None
+        self.graph_gate = None
+
         if config.graph_dim and config.graph_dim > 0:
+            self.graph_norm = nn.LayerNorm(config.graph_dim)
             self.graph_proj = nn.Linear(config.graph_dim, config.n_embd, bias=False)
+            self.graph_gate = nn.Parameter(torch.zeros(1))  # start with NO graph influence
+
+        # # Graph embedding projection (FEATHER -> n_embd)
+        # self.graph_proj = None
+        # if config.graph_dim and config.graph_dim > 0:
+        #     self.graph_proj = nn.Linear(config.graph_dim, config.n_embd, bias=False)
 
         self.apply(self._init_weights)
 
@@ -487,10 +537,10 @@ class QAOAgpt(GPT):
         # BUT we want to zero out *strictly after* EOS, so shift.
         # We'll compute "past_eos" = (csum >= 2) OR (csum >=1 and position > first_eos)
         # Easier: build mask where csum <= 1 (means before first EOS or at first EOS)
-        mask = (csum <= 1).float()                   # 1 up to first EOS inclusive, 0 afterwards
+        mask = (csum <= 2).float()                   # 1 up to first EOS inclusive, 0 afterwards
         return mask  # (B, T)
 
-    def forward(self, idx, graph_emb=None, targets=None, eos_token_id=None):
+    def forward(self, idx, graph_emb=None, targets=None, eos_token_id=None, padding_mask=None):
         """
         idx: (B, T) token ids
         graph_emb: (B, graph_dim) float tensor, required if graph_dim>0
@@ -516,16 +566,24 @@ class QAOAgpt(GPT):
         pos_emb = self.transformer.wpe(pos)            # (T, n_embd) -> broadcast to (B, T, n_embd)
         x = tok_emb + pos_emb
 
-        # Inject FEATHER graph embedding
+        # # Inject FEATHER graph embedding
+        # if self.graph_proj is not None:
+        #     g = self.graph_proj(graph_emb)             # (B, n_embd)
+        #     g = g.unsqueeze(1).expand(-1, T, -1)       # (B, T, n_embd)
+        #     x = x + g
+
         if self.graph_proj is not None:
-            g = self.graph_proj(graph_emb)             # (B, n_embd)
-            g = g.unsqueeze(1).expand(-1, T, -1)       # (B, T, n_embd)
+            g = self.graph_norm(graph_emb)       # (B, graph_dim)
+            g = self.graph_proj(g)               # (B, n_embd)
+            g = self.graph_gate * g
+            g = g.unsqueeze(1)                   # (B,1,n_embd)
             x = x + g
 
         x = self.transformer.drop(x)
 
+
         for block in self.transformer.h:
-            x = block(x)
+            x = block(x, padding_mask=padding_mask)
 
         x = self.transformer.ln_f(x)                   # (B, T, n_embd)
         logits = self.lm_head(x)                       # (B, T, vocab_size)
@@ -543,8 +601,10 @@ class QAOAgpt(GPT):
                 loss_per_token = nn.functional.cross_entropy(
                     logits.view(-1, logits.size(-1)),
                     targets.view(-1),
-                    reduction="none"
+                    reduction="none",
+                    ignore_index=0   # <<< PAD_ID
                 ).view(B, T)
+
 
                 mask = self._make_loss_mask_after_eos(targets, mask_eos_id)  # (B, T)
                 # Avoid division by zero if mask is all zeros (shouldn't happen unless sequence starts after EOS)
@@ -554,8 +614,10 @@ class QAOAgpt(GPT):
                 # Standard GPT loss over all tokens
                 loss = nn.functional.cross_entropy(
                     logits.view(-1, logits.size(-1)),
-                    targets.view(-1)
+                    targets.view(-1),
+                    ignore_index=0   # <<< PAD_ID
                 )
+
 
         return logits, loss
 
@@ -572,6 +634,8 @@ class QAOAgpt(GPT):
         """
         Autoregressive generation. Stops early if eos_token_id is produced.
         """
+        finished = torch.zeros(idx.size(0), dtype=torch.bool, device=idx.device)
+
         for _ in range(max_new_tokens):
             idx_cond = idx[:, -self.config.block_size:]
             logits, _ = self(idx_cond, graph_emb=graph_emb)
@@ -579,17 +643,22 @@ class QAOAgpt(GPT):
             logits = logits[:, -1, :] / max(temperature, 1e-8)
 
             if top_k is not None:
-                v, _ = torch.topk(logits, top_k)
+                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
                 logits[logits < v[:, [-1]]] = -float("inf")
 
-            probs = nn.functional.softmax(logits, dim=-1)
-            idx_next = torch.multinomial(probs, num_samples=1)  # (B,1)
+            probs = torch.softmax(logits, dim=-1)
+            idx_next = torch.multinomial(probs, num_samples=1)
+
+            # EOS-safe handling
+            if eos_token_id is not None:
+                idx_next[finished] = eos_token_id
+                finished |= (idx_next.squeeze(1) == eos_token_id)
 
             idx = torch.cat((idx, idx_next), dim=1)
 
-            if eos_token_id is not None:
-                # stop if ALL sequences in batch produced EOS this step
-                if (idx_next == eos_token_id).all():
-                    break
+            if eos_token_id is not None and finished.all():
+                break
+
+
 
         return idx

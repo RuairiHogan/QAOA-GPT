@@ -14,7 +14,7 @@ import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
-from model import QAOAgpt, QAOAConfig
+from qaoa_model import QAOAgpt, QAOAConfig
 
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText
@@ -119,10 +119,21 @@ if master_process:
     print("  ", val_seqs_path)
     print("  ", val_gemb_path)
 
-train_seqs = np.load(train_seqs_path, allow_pickle=True)
-val_seqs   = np.load(val_seqs_path, allow_pickle=True)
-train_gemb = np.load(train_gemb_path).astype(np.float32)
-val_gemb   = np.load(val_gemb_path).astype(np.float32)
+mmap = 'r'
+
+# NOTE:
+# - allow_pickle=True implies dtype=object; object arrays cannot be memory-mapped.
+# - keep your files as-is, but fall back cleanly if mmap fails.
+try:
+    train_seqs = np.load(train_seqs_path, mmap_mode=mmap, allow_pickle=True)
+    val_seqs   = np.load(val_seqs_path,   mmap_mode=mmap, allow_pickle=True)
+except ValueError:
+    # object arrays cannot be memory-mapped; retry without mmap
+    train_seqs = np.load(train_seqs_path, allow_pickle=True)
+    val_seqs   = np.load(val_seqs_path,   allow_pickle=True)
+
+train_gemb = np.load(train_gemb_path, mmap_mode=mmap).astype(np.float32)
+val_gemb   = np.load(val_gemb_path,   mmap_mode=mmap).astype(np.float32)
 
 assert len(train_seqs) == len(train_gemb), "train_seqs and train_graph_emb must be same length"
 assert len(val_seqs) == len(val_gemb), "val_seqs and val_graph_emb must be same length"
@@ -134,36 +145,51 @@ def get_batch(split):
     gemb = train_gemb if split == "train" else val_gemb
 
     B = batch_size
-    T = block_size
 
-    X = torch.empty((B, T), dtype=torch.long)
-    Y = torch.empty((B, T), dtype=torch.long)
-    G = torch.empty((B, graph_dim), dtype=torch.float32)
+    # sample full sequences (no windowing)
+    batch_idx = np.random.randint(0, len(seqs), size=B)
+    batch_seqs = [seqs[i] for i in batch_idx]
+    batch_gemb = gemb[batch_idx]
 
-    # sample windows INSIDE one instance at a time (no cross-graph bleed)
-    for i in range(B):
-        j = np.random.randint(0, len(seqs))
-        seq = seqs[j]
+    T = block_size  # fixed length like working script
 
-        if len(seq) < T + 1:
-            raise ValueError(f"Sequence {j} length {len(seq)} < block_size+1 ({T+1}). Lower block_size or filter sequences.")
+    # X/Y padded with PAD_ID. padding_mask True=pad matches the "working" convention.
+    X = torch.full((B, T), PAD_ID, dtype=torch.long)
+    Y = torch.full((B, T), PAD_ID, dtype=torch.long)
+    padding_mask = torch.ones((B, T), dtype=torch.bool)  # True = pad
 
-        start = np.random.randint(0, len(seq) - T - 1)
-        chunk = seq[start : start + T + 1]
+    G = torch.from_numpy(batch_gemb)
 
-        # ensure integer type
-        X[i] = torch.from_numpy(chunk[:-1].astype(np.int64))
-        Y[i] = torch.from_numpy(chunk[1:].astype(np.int64))
-        G[i] = torch.from_numpy(gemb[j])
+    for i, seq in enumerate(batch_seqs):
+        # ensure numeric dtype for torch and avoid accidental object scalars
+        seq = np.asarray(seq, dtype=np.int64)
+        L = len(seq)
+
+        # "working-like" shifting:
+        # - train on all next-token pairs that exist in the sequence
+        # - include EOS if it's present in seq (it will be, if your tokenizer appended it)
+        # - do not create any targets past the final real token
+            # truncate if too long
+        if len(seq) > T:
+            seq = seq[:T]
+
+        L = len(seq)
+
+        if L >= 2:
+            X[i, :L-1] = torch.from_numpy(seq[:-1])
+            Y[i, :L-1] = torch.from_numpy(seq[1:])
+            padding_mask[i, :L-1] = False  # False = keep, True = mask
 
     if device_type == 'cuda':
         X = X.pin_memory().to(device, non_blocking=True)
         Y = Y.pin_memory().to(device, non_blocking=True)
         G = G.pin_memory().to(device, non_blocking=True)
+        padding_mask = padding_mask.pin_memory().to(device, non_blocking=True)
     else:
-        X, Y, G = X.to(device), Y.to(device), G.to(device)
+        X, Y, G, padding_mask = X.to(device), Y.to(device), G.to(device), padding_mask.to(device)
 
-    return X, Y, G
+    return X, Y, G, padding_mask
+
 
 # init these up here, can override if init_from='resume'
 iter_num = 0
@@ -172,6 +198,7 @@ best_val_loss = 1e9
 # attempt to derive vocab_size from the dataset
 meta_path = os.path.join(data_dir, 'meta.pkl')
 meta_vocab_size = None
+meta = None
 if os.path.exists(meta_path):
     with open(meta_path, 'rb') as f:
         meta = pickle.load(f)
@@ -179,9 +206,18 @@ if os.path.exists(meta_path):
     if meta_vocab_size is not None:
         print(f"found vocab_size = {meta_vocab_size} (inside {meta_path})")
 
-# -----------------------------------------------------------------------------
+# -------------------------------------------------
+# PAD / EOS IDs from tokenizer
+# -------------------------------------------------
+PAD_ID = meta["stoi"]["<pad>"]
+EOS_ID = meta["stoi"]["<end_of_circuit>"]
+
+print(f"Using PAD_ID={PAD_ID}, EOS_ID={EOS_ID}")
+
+
+# ---------------------------------------------------------------------
 # model init
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------
 model_args = dict(
     n_layer=n_layer,
     n_head=n_head,
@@ -270,9 +306,15 @@ def estimate_loss():
     for split in ['train', 'val']:
         losses = torch.zeros(eval_iters)
         for k in range(eval_iters):
-            X, Y, G = get_batch(split)
+            X, Y, G, padding_mask = get_batch(split)
             with ctx:
-                logits, loss = model(X, graph_emb=G, targets=Y)
+                logits, loss = model(
+                    X,
+                    graph_emb=G,
+                    targets=Y,
+                    padding_mask=padding_mask
+                )
+
             losses[k] = loss.item()
         out[split] = losses.mean()
     model.train()
@@ -295,7 +337,7 @@ if wandb_log and master_process:
     wandb.init(project=wandb_project, name=wandb_run_name, config=config)
 
 # training loop
-X, Y, G = get_batch('train')  # fetch the very first batch
+X, Y, G, padding_mask = get_batch('train')  # fetch the very first batch
 t0 = time.time()
 local_iter_num = 0
 raw_model = model.module if ddp else model
@@ -340,11 +382,16 @@ while True:
             model.require_backward_grad_sync = (micro_step == gradient_accumulation_steps - 1)
 
         with ctx:
-            logits, loss = model(X, graph_emb=G, targets=Y)
+            logits, loss = model(
+                X,
+                graph_emb=G,
+                targets=Y,
+                padding_mask=padding_mask
+            )
             loss = loss / gradient_accumulation_steps
 
         # prefetch next batch
-        X, Y, G = get_batch('train')
+        X, Y, G, padding_mask = get_batch('train')
 
         scaler.scale(loss).backward()
 

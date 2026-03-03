@@ -19,7 +19,7 @@ init_from = 'scratch' # 'scratch' or 'resume' or 'gpt2*'
 
 # Batch & sequence
 batch_size = 16           # reduce to 32 if GPU memory limited (was 64)
-block_size = 25  # was 128 but crashed          # more than enough for your circuits (was 256)
+block_size = 128  # was 128 but crashed          # more than enough for your circuits (was 256)
 gradient_accumulation_steps = 3
 
 # Model size (THIS IS IMPORTANT)

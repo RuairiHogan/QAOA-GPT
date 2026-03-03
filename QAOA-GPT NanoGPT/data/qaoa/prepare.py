@@ -15,6 +15,8 @@ vocab_file = os.path.join(data_dir, "vocab.txt")
 with open(vocab_file, "r", encoding="utf-8") as f:
     vocab = [line.strip() for line in f if line.strip()]
 
+vocab = ["<pad>"] + vocab
+
 stoi = {tok: i for i, tok in enumerate(vocab)}
 itos = {i: tok for tok, i in stoi.items()}
 vocab_size = len(vocab)
