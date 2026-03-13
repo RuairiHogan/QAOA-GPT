@@ -148,6 +148,9 @@ def get_batch(split):
     data_batch_np = data[ix]  # shape [B, T] if you padded/truncated
 
     graph_emb_data = torch.from_numpy(emb_data[ix])  # shape [B, D], float32
+    # for zero testing
+    # graph_emb_data = torch.zeros((batch_size, emb_dim), dtype=torch.float32)
+    
 
     x = torch.from_numpy(data_batch_np[:, :-1].astype(np.int64))
     y = torch.from_numpy(data_batch_np[:, 1: ].astype(np.int64))

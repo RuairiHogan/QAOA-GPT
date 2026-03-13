@@ -1,7 +1,10 @@
 import json
 
-INPUT_FILE = "qaoa_gpt_dataset_elite.jsonl"
-OUTPUT_FILE = "qaoa_gpt_dataset_eos.jsonl"
+# INPUT_FILE = "qaoa_gpt_dataset_elite.jsonl"
+# OUTPUT_FILE = "qaoa_gpt_dataset_eos.jsonl"
+
+INPUT_FILE = "overfitting.jsonl"
+OUTPUT_FILE = "overfitting_eos.jsonl"
 
 kept = 0
 discarded = 0

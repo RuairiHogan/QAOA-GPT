@@ -63,7 +63,7 @@ for i in tqdm(range(NUM_GRAPHS)):
         tokens.append(f"{G[u][v]['weight']}")
 
     tokens.append("<end_of_graph>")
-    tokens.append(f"<seed={seed}>")
+    
 
     graph_lines.append(" ".join(tokens))
 

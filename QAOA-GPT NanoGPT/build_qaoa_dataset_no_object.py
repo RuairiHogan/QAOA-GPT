@@ -7,7 +7,7 @@ import random
 # CONFIG
 # -------------------------------------------------
 DATASET_DIR = "data/qaoa"
-INPUT_TXT   = "../QAOA-GPT Data Preparation/train.txt"
+INPUT_TXT   = "../QAOA-GPT Data Preparation/train_overfit.txt"
 GRAPH_EMB   = "../QAOA-GPT Data Preparation/graph_embeddings.npy"
 TRAIN_FRAC  = 0.9
 SEED        = 1337
@@ -27,7 +27,7 @@ with open(meta_path, "rb") as f:
 
 stoi = meta["stoi"]
 itos = meta["itos"]
-
+ 
 # -------------------------------------------------
 # ADD PAD TOKEN (ID = 0)
 # -------------------------------------------------

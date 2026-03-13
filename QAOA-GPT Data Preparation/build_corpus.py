@@ -1,7 +1,7 @@
 import json
 
 INPUT = "../QAOA-GPT Training Data/qaoa_gpt_dataset_canonical.jsonl"
-OUTPUT = "train.txt"
+OUTPUT = "train_overfit.txt"
 
 with open(INPUT, "r") as fin, open(OUTPUT, "w") as fout:
     for line in fin:
