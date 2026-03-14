@@ -1,3 +1,5 @@
+# file for building the training corpus from the original JSONL dataset. It reads each entry, prepends a tier token, and writes the token sequence to a text file for training.
+
 import json
 
 INPUT = "../QAOA-GPT Training Data/qaoa_gpt_dataset_canonical.jsonl"
