@@ -1,7 +1,7 @@
 import json
 
 INPUT = "../QAOA-GPT Training Data/qaoa_gpt_dataset_canonical.jsonl"
-OUTPUT = "train_overfit.txt"
+OUTPUT = "train.txt"
 
 with open(INPUT, "r") as fin, open(OUTPUT, "w") as fout:
     for line in fin:
@@ -13,7 +13,7 @@ with open(INPUT, "r") as fin, open(OUTPUT, "w") as fout:
         tokens = entry["tokens"]
 
         # prepend tier token
-        full_sequence = [tier_token] + tokens + ["<end_of_circuit>"]
+        full_sequence = [tier_token] + tokens
 
         fout.write(" ".join(full_sequence) + "\n")
 
