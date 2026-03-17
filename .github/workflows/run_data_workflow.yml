@@ -22,10 +22,10 @@ jobs:
 
       - name: Run generator
         run: |
-          python ADAPT_QAOA_kingston.py
+          python "QAOA-GPT Training Data/ADAPT_QAOA_kingston.py"
 
       - name: Upload dataset
         uses: actions/upload-artifact@v4
         with:
           name: qaoa-dataset
-          path: qaoa_gpt_dataset_kingston_7q.jsonl
+          path: "QAOA-GPT Training Data/qaoa_gpt_dataset_kingston_7q.jsonl"
