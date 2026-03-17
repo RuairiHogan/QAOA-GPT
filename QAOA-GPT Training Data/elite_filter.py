@@ -1,7 +1,7 @@
 import json
 
-INPUT_FILE = "qaoa_gpt_dataset.jsonl"
-OUTPUT_FILE = "qaoa_gpt_dataset_elite.jsonl"
+INPUT_FILE = "qaoa_gpt_dataset_kingston_7q.jsonl"
+OUTPUT_FILE = "qaoa_gpt_dataset_kingston_elite.jsonl"
 
 kept = 0
 discarded = 0
