@@ -1,26 +1,31 @@
 name: Run QAOA Generator
 
 on:
-  workflow_dispatch:   # lets you start it manually
+  workflow_dispatch:
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
-    timeout-minutes: 360   # max allowed (6 hours)
+    timeout-minutes: 350
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          pip install numpy networkx qiskit scipy
 
-      - name: Run loop script
+      - name: Run generator
         run: |
-          python run_data_creation.py
+          python ADAPT_QAOA_kingston.py
+
+      - name: Upload dataset
+        uses: actions/upload-artifact@v4
+        with:
+          name: qaoa-dataset
+          path: qaoa_gpt_dataset_kingston_7q.jsonl

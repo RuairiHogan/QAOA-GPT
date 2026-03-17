@@ -9,7 +9,7 @@ import time
 #########################################################
 # USER CONTROLS (paper-aligned defaults)
 #########################################################
-NUM_GRAPHS = 10
+NUM_GRAPHS = 2000
 NUM_QUBITS = 7
 EDGE_PROB_RANGE = (0.3, 0.9)
 MAX_DEPTH = 9
