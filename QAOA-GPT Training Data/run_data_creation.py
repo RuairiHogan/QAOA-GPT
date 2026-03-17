@@ -2,7 +2,7 @@ import subprocess
 import time
 import sys
 
-SCRIPT = "ADAPT_QAOA.py"
+SCRIPT = "ADAPT_QAOA_kingston.py"
 
 print("Starting continuous QAOA-GPT data generation...")
 print("Press Ctrl+C to stop.\n")

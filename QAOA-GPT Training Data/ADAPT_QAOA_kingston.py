@@ -9,14 +9,13 @@ import time
 #########################################################
 # USER CONTROLS (paper-aligned defaults)
 #########################################################
-# 7, 9 works with 0.01 and 0.1 = gamma0
 NUM_GRAPHS = 10
 NUM_QUBITS = 7
 EDGE_PROB_RANGE = (0.3, 0.9)
 MAX_DEPTH = 9
 GAMMA0_GRID = [0.01, 0.1, 0.5, 1.0]
 TARGET_AR = 0.97
-DATASET_FILE = "qaoa_gpt_dataset.jsonl"
+DATASET_FILE = "qaoa_gpt_dataset_kingston_7q.jsonl"
 SEED = int(time.time())
 
 # "PQAOA" -> HB only
@@ -24,6 +23,40 @@ SEED = int(time.time())
 OP_POOL_MODE = "PDUAL"
 
 np.random.seed(SEED)
+
+#########################################################
+# IBM Kingston 7-qubit subgraph choice
+#########################################################
+# Physical qubits chosen on ibm_kingston:
+#   [4, 5, 6, 7, 8, 9, 17]
+#
+# Physical edges among those qubits:
+#   (4,5), (5,6), (6,7), (7,8), (8,9), (7,17)
+#
+# Relabel to logical qubits 0..6:
+#   0 -> 4
+#   1 -> 5
+#   2 -> 6
+#   3 -> 7
+#   4 -> 8
+#   5 -> 9
+#   6 -> 17
+#
+# Logical coupling map:
+#   (0,1), (1,2), (2,3), (3,4), (4,5), (3,6)
+
+KINGSTON_PHYSICAL_QUBITS = [4, 5, 6, 7, 8, 9, 17]
+LOGICAL_TO_PHYSICAL = {0: 4, 1: 5, 2: 6, 3: 7, 4: 8, 5: 9, 6: 17}
+PHYSICAL_TO_LOGICAL = {v: k for k, v in LOGICAL_TO_PHYSICAL.items()}
+
+KINGSTON_7Q_COUPLING_MAP = [
+    (0, 1),
+    (1, 2),
+    (2, 3),
+    (3, 4),
+    (4, 5),
+    (3, 6),
+]
 
 #########################################################
 # Hardware connectivity config
@@ -37,19 +70,19 @@ class HardwareConfig:
         self.coupling_set = set(self.coupling_map)
 
     def is_edge_allowed(self, i, j):
-        return (i, j) in self.coupling_set or (j, i) in self.coupling_set
+        return tuple(sorted((i, j))) in self.coupling_set
 
     def __repr__(self):
         return f"HardwareConfig(n_qubits={self.n_qubits}, coupling_map={self.coupling_map})"
 
 
 def is_operator_allowed(op_name, hardware):
-    """Check if a single or two-qubit operator is allowed on this hardware."""
+    """Check if a single- or two-qubit operator is allowed on this hardware."""
     if op_name.startswith(("X_", "Y_", "Z_")) and op_name.count("_") == 1:
         # single-qubit operator always allowed
         return True
 
-    # two-qubit operators are of form B_i_C_j (e.g. ZZ_0_1 or X_0_Y_1)
+    # two-qubit operators are of form B_i_C_j (e.g. Z_0_Z_1 or X_0_Y_1)
     parts = op_name.split("_")
     if len(parts) == 4:
         _, i_str, _, j_str = parts
@@ -111,9 +144,9 @@ def build_single_qubit_paulis(n):
     Y = []
     Z = []
     for i in range(n):
-        X.append(qi.Pauli(("I"*i + "X" + "I"*(n-i-1))[::-1]).to_matrix())
-        Y.append(qi.Pauli(("I"*i + "Y" + "I"*(n-i-1))[::-1]).to_matrix())
-        Z.append(qi.Pauli(("I"*i + "Z" + "I"*(n-i-1))[::-1]).to_matrix())
+        X.append(qi.Pauli(("I" * i + "X" + "I" * (n - i - 1))[::-1]).to_matrix())
+        Y.append(qi.Pauli(("I" * i + "Y" + "I" * (n - i - 1))[::-1]).to_matrix())
+        Z.append(qi.Pauli(("I" * i + "Z" + "I" * (n - i - 1))[::-1]).to_matrix())
     I = np.eye(2**n, dtype=complex)
     return I, X, Y, Z
 
@@ -176,7 +209,7 @@ def build_operator_list_and_mats(n, I, X, Y, Z, coupling_map=None):
     op_mats = []
 
     if OP_POOL_MODE.upper() == "PQAOA":
-        op_names.append("HB")   # special: not a single Pauli string
+        op_names.append("HB")
         op_mats.append(None)
 
     elif OP_POOL_MODE.upper() == "PDUAL":
@@ -196,14 +229,19 @@ def build_operator_list_and_mats(n, I, X, Y, Z, coupling_map=None):
             # default: fully connected pairs i<j
             coupling_map = [(i, j) for i in range(n) for j in range(i + 1, n)]
 
-        # normalize to unique sorted pairs
-        edge_set = sorted({tuple(sorted(e)) for e in coupling_map if 0 <= e[0] < n and 0 <= e[1] < n and e[0] != e[1]})
+        edge_set = sorted({
+            tuple(sorted(e))
+            for e in coupling_map
+            if 0 <= e[0] < n and 0 <= e[1] < n and e[0] != e[1]
+        })
+
+        hardware = HardwareConfig(n, edge_set)
 
         for (i, j) in edge_set:
             for B in ["X", "Y", "Z"]:
                 for C in ["X", "Y", "Z"]:
                     op_name = f"{B}_{i}_{C}_{j}"
-                    if not is_operator_allowed(op_name, HardwareConfig(n, edge_set)):
+                    if not is_operator_allowed(op_name, hardware):
                         continue
                     op_names.append(op_name)
                     op_mats.append(paulis[B][i] @ paulis[C][j])
@@ -222,7 +260,7 @@ def adapt_gradient(phi, Hc, Aj):
     return np.imag(np.vdot(phi, comm @ phi))
 
 #########################################################
-# Build/apply the circuit on a statevector (NO eigenvalues)
+# Build/apply the circuit on a statevector
 #########################################################
 
 def apply_mixer_to_state(psi, op_index, beta, op_names, op_mats, X):
@@ -276,7 +314,7 @@ def run_adapt_qaoa_once(graph, Hc, opt_val, edge_terms, op_names, op_mats, I, X,
     psi = np.ones(2**n, dtype=complex) / np.sqrt(2**n)
 
     for layer in range(max_depth):
-        # phi = e^{-i gamma0 Hc}|psi>  (we approximate using the ZZ-only cost unitary)
+        # phi = e^{-i gamma0 Hc}|psi> approximated using the ZZ-only cost unitary
         phi = apply_cost_to_state(psi, edge_terms, gamma0)
 
         # Choose best operator by |gradient|
@@ -304,17 +342,7 @@ def run_adapt_qaoa_once(graph, Hc, opt_val, edge_terms, op_names, op_mats, I, X,
             )
             return -np.real(np.vdot(psi_tmp, Hc @ psi_tmp))
 
-        # res = minimize(
-        #     objective_neg,
-        #     x0=[0.1, 0.1],
-        #     method="COBYLA",
-        #     options={
-        #         "maxiter": 50,
-        #         "rhobeg": 0.5
-        #     }
-        # )
         res = minimize(objective_neg, x0=[0.1, 0.1], method="Nelder-Mead")
-
 
         betas.append(float(res.x[0]))
         gammas.append(float(res.x[1]))
@@ -328,7 +356,7 @@ def run_adapt_qaoa_once(graph, Hc, opt_val, edge_terms, op_names, op_mats, I, X,
     return op_indices, betas, gammas, ar
 
 #########################################################
-# Tokenizer + writer (paper Step 3 format)
+# Tokenizer + writer
 #########################################################
 
 def tokenize_graph_and_circuit(graph, op_indices, betas, gammas):
@@ -347,7 +375,7 @@ def tokenize_graph_and_circuit(graph, op_indices, betas, gammas):
 
         tokens.append(f"<new_layer_{k+1}>")
         tokens.append(int(op_indices[k]))  # operator index o_k
-        tokens.append(gamma)               # γ then β (paper ordering)
+        tokens.append(gamma)               # γ then β
         tokens.append(beta)
 
     return tokens
@@ -362,7 +390,6 @@ def ar_tier(ar):
     else:
         return "poor"
 
-
 def write_dataset_entry(filename, graph, tokens, ar, tier, op_pool_mode, gamma0, coupling_map):
     entry = {
         "num_qubits": graph.number_of_nodes(),
@@ -372,22 +399,33 @@ def write_dataset_entry(filename, graph, tokens, ar, tier, op_pool_mode, gamma0,
         "gamma0": gamma0,
         "approx_ratio": round(float(ar), 4),
         "tier": tier,
+        "hardware_name": "ibm_kingston_7q_subgraph",
+        "physical_qubits": KINGSTON_PHYSICAL_QUBITS,
+        "logical_to_physical": LOGICAL_TO_PHYSICAL,
         "hardware_coupling_map": coupling_map,
         "tokens": tokens
     }
     with open(filename, "a") as f:
         f.write(json.dumps(entry) + "\n")
 
+#########################################################
+# Test
+#########################################################
 
 def test_hardware_constrained_operator_pool():
-    n = 4
-    coupling_map = [(0, 1), (1, 2), (2, 3)]
+    n = 7
+    coupling_map = KINGSTON_7Q_COUPLING_MAP
     hw = HardwareConfig(n, coupling_map)
     I, X, Y, Z = build_single_qubit_paulis(n)
 
     op_names, _ = build_operator_list_and_mats(n, I, X, Y, Z, coupling_map=hw.coupling_map)
 
-    expected_singles = {f"X_{i}" for i in range(n)} | {f"Y_{i}" for i in range(n)} | {f"Z_{i}" for i in range(n)}
+    expected_singles = (
+        {f"X_{i}" for i in range(n)}
+        | {f"Y_{i}" for i in range(n)}
+        | {f"Z_{i}" for i in range(n)}
+    )
+
     expected_two_qubit = {
         f"{B}_{i}_{C}_{j}"
         for (i, j) in coupling_map
@@ -399,14 +437,14 @@ def test_hardware_constrained_operator_pool():
     assert expected_two_qubit.issubset(set(op_names)), "Missing allowed two-qubit operators"
 
     forbidden = {
-        "Z_0_Z_2",
-        "Z_0_Z_3",
-        "Z_1_Z_3",
+        "Z_0_Z_6",
+        "Z_1_Z_5",
+        "Z_2_Z_4",
+        "X_0_Y_4",
     }
     assert forbidden.isdisjoint(set(op_names)), "Forbidden two-qubit operators should be excluded"
 
-    print("✅ hardware-constrained operator pool test passed")
-
+    print("✅ Kingston 7-qubit hardware-constrained operator pool test passed")
 
 #########################################################
 # Main
@@ -421,6 +459,9 @@ if __name__ == "__main__":
 
     # sanity check for connectivity constraints
     test_hardware_constrained_operator_pool()
+
+    # Fixed 7-qubit IBM Kingston subgraph hardware
+    hardware = HardwareConfig(NUM_QUBITS, coupling_map=KINGSTON_7Q_COUPLING_MAP)
 
     while written < NUM_GRAPHS and attempts < NUM_GRAPHS * 10:
         attempts += 1
@@ -444,9 +485,9 @@ if __name__ == "__main__":
         opt_val = maxcut_opt_bruteforce(G)
         Hc = cost_hamiltonian_Hc(G)
 
-        # Hardware coupling constraint (example chain topology)
-        hardware = HardwareConfig(n, coupling_map=[(i, i + 1) for i in range(n - 1)])
-        op_names, op_mats = build_operator_list_and_mats(n, I, X, Y, Z, coupling_map=hardware.coupling_map)
+        op_names, op_mats = build_operator_list_and_mats(
+            n, I, X, Y, Z, coupling_map=hardware.coupling_map
+        )
 
         for gamma0 in GAMMA0_GRID:
             op_indices, betas, gammas, ar = run_adapt_qaoa_once(
@@ -457,7 +498,7 @@ if __name__ == "__main__":
                 print(
                     f"Rejected circuit | n={NUM_QUBITS}, "
                     f"s={s:.2f}, gamma0={gamma0}, "
-                    f"AR={ar:.4f} < {TARGET_AR}"
+                    f"AR={ar:.4f} < 0.90"
                 )
                 continue
 
@@ -482,33 +523,3 @@ if __name__ == "__main__":
                 break
 
     print(f"\nDone. Dataset saved to: {DATASET_FILE}")
-
-
-def test_hardware_constrained_operator_pool():
-    n = 4
-    coupling_map = [(0, 1), (1, 2), (2, 3)]
-    hw = HardwareConfig(n, coupling_map)
-    I, X, Y, Z = build_single_qubit_paulis(n)
-
-    op_names, _ = build_operator_list_and_mats(n, I, X, Y, Z, coupling_map=hw.coupling_map)
-
-    expected_singles = {f"X_{i}" for i in range(n)} | {f"Y_{i}" for i in range(n)} | {f"Z_{i}" for i in range(n)}
-    expected_two_qubit = {
-        f"{B}_{i}_{C}_{j}"
-        for (i, j) in coupling_map
-        for B in ["X", "Y", "Z"]
-        for C in ["X", "Y", "Z"]
-    }
-
-    assert expected_singles.issubset(set(op_names)), "Missing single-qubit operators"
-    assert expected_two_qubit.issubset(set(op_names)), "Missing allowed two-qubit operators"
-
-    forbidden = {
-        "Z_0_Z_2",
-        "Z_0_Z_3",
-        "Z_1_Z_3",
-    }
-    assert forbidden.isdisjoint(set(op_names)), "Forbidden two-qubit operators should be excluded"
-
-    print("✅ hardware-constrained operator pool test passed")
-

@@ -50,7 +50,7 @@ def apply_pauli_exp_to_state(psi, P, theta, sign):
 # OPERATOR POOL (IDENTICAL TO TRAINING)
 ########################################
 
-def build_operator_pool(n):
+def build_operator_pool(n, coupling_map=None):
     X, Y, Z = [], [], []
     for i in range(n):
         X.append(qi.Pauli(("I"*i + "X" + "I"*(n-i-1))[::-1]).to_matrix())
@@ -67,11 +67,16 @@ def build_operator_pool(n):
 
     # two-qubit Pauli strings (ORDER MATTERS)
     paulis = {"X": X, "Y": Y, "Z": Z}
-    for i in range(n):
-        for j in range(i + 1, n):
-            for B in ["X", "Y", "Z"]:
-                for C in ["X", "Y", "Z"]:
-                    op_mats.append(paulis[B][i] @ paulis[C][j])
+
+    if coupling_map is None:
+        coupling_map = [(i, j) for i in range(n) for j in range(i + 1, n)]
+
+    edge_set = sorted({tuple(sorted(e)) for e in coupling_map if 0 <= e[0] < n and 0 <= e[1] < n and e[0] != e[1]})
+
+    for (i, j) in edge_set:
+        for B in ["X", "Y", "Z"]:
+            for C in ["X", "Y", "Z"]:
+                op_mats.append(paulis[B][i] @ paulis[C][j])
 
     return op_mats
 
@@ -163,7 +168,7 @@ def test_all_circuits(test_file):
             tokens = line.split()
             G, ops, gammas, betas = parse_tokens(tokens)
 
-            op_mats = build_operator_pool(G.number_of_nodes())
+            op_mats = build_operator_pool(G.number_of_nodes(), coupling_map=[(i, i + 1) for i in range(G.number_of_nodes() - 1)])
 
             approx = evaluate_circuit(G, ops, gammas, betas, op_mats)
             opt = maxcut_opt_bruteforce(G)
