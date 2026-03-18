@@ -1,7 +1,7 @@
 import json
 from collections import Counter
-INPUT_FILE = "qaoa_gpt_dataset_elite.jsonl"
-OUTPUT_FILE = "qaoa_gpt_dataset_canonical.jsonl"
+INPUT_FILE = "qaoa_gpt_dataset_kingston_elite.jsonl"
+OUTPUT_FILE = "qaoa_gpt_dataset_kingston_canonical.jsonl"
 
 def canonicalize_token(tok):
     """
