@@ -9,7 +9,7 @@ import cProfile
 #########################################################
 # USER CONTROLS (paper-aligned defaults)
 #########################################################
-NUM_GRAPHS = 10000
+NUM_GRAPHS = 7000
 NUM_QUBITS = 7
 EDGE_PROB_RANGE = (0.3, 0.9)
 MAX_DEPTH = 9
@@ -391,6 +391,8 @@ def ar_tier(ar):
         return "poor"
 
 def write_dataset_entry(filename, graph, tokens, ar, tier, op_pool_mode, gamma0, coupling_map):
+    if tier != "elite":
+        return  # Only write elite-tier examples to the dataset
     entry = {
         "num_qubits": graph.number_of_nodes(),
         "edge_prob_model": "erdos_renyi",
