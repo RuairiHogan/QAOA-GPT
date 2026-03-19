@@ -5,7 +5,7 @@ from scipy.optimize import minimize
 import json
 import os
 import time
-
+import cProfile
 #########################################################
 # USER CONTROLS (paper-aligned defaults)
 #########################################################
@@ -450,7 +450,7 @@ def test_hardware_constrained_operator_pool():
 # Main
 #########################################################
 
-if __name__ == "__main__":
+def main():
     if not os.path.exists(DATASET_FILE):
         open(DATASET_FILE, "w").close()
 
@@ -523,3 +523,6 @@ if __name__ == "__main__":
                 break
 
     print(f"\nDone. Dataset saved to: {DATASET_FILE}")
+
+if __name__ == "__main__":
+    cProfile.run("main()")
