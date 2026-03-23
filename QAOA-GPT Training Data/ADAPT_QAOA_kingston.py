@@ -9,7 +9,7 @@ import cProfile
 #########################################################
 # USER CONTROLS (paper-aligned defaults)
 #########################################################
-NUM_GRAPHS = 7000
+NUM_GRAPHS = 10000
 NUM_QUBITS = 7
 EDGE_PROB_RANGE = (0.3, 0.9)
 MAX_DEPTH = 9
