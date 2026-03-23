@@ -1,0 +1,193 @@
+{
+  "summary": {
+    "num_graphs": 20,
+    "plot_mode": "stacked",
+    "adapt_mean_time_seconds_excluding_bruteforce": 9.099576274998253,
+    "adapt_median_time_seconds_excluding_bruteforce": 8.228449949994683,
+    "llm_mean_time_seconds": 0.5166946250072215,
+    "llm_median_time_seconds": 0.49962329998379573,
+    "mean_speedup_adapt_over_llm": 17.40994654785721
+  },
+  "per_graph_results": [
+    {
+      "graph_id": "G1",
+      "source_line": 1,
+      "adapt_time_seconds_excluding_bruteforce": 25.132725300034508,
+      "llm_time_seconds": 0.5991663000313565,
+      "adapt_num_layers": 4,
+      "adapt_ar": 0.8265931368557996,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G2",
+      "source_line": 2,
+      "adapt_time_seconds_excluding_bruteforce": 14.502492500003427,
+      "llm_time_seconds": 0.5876525999046862,
+      "adapt_num_layers": 6,
+      "adapt_ar": 0.8620071681070418,
+      "llm_num_layers": 7
+    },
+    {
+      "graph_id": "G3",
+      "source_line": 3,
+      "adapt_time_seconds_excluding_bruteforce": 5.372146500041708,
+      "llm_time_seconds": 0.4966394000221044,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.83578176680676,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G4",
+      "source_line": 4,
+      "adapt_time_seconds_excluding_bruteforce": 3.9816798999672756,
+      "llm_time_seconds": 0.4842657999834046,
+      "adapt_num_layers": 2,
+      "adapt_ar": 0.8304255536037995,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G5",
+      "source_line": 5,
+      "adapt_time_seconds_excluding_bruteforce": 12.300461500068195,
+      "llm_time_seconds": 0.8175799999153242,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8306122447307461,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G6",
+      "source_line": 6,
+      "adapt_time_seconds_excluding_bruteforce": 10.928212599945255,
+      "llm_time_seconds": 0.5334725000429899,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8261515598308158,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G7",
+      "source_line": 7,
+      "adapt_time_seconds_excluding_bruteforce": 9.259072300046682,
+      "llm_time_seconds": 0.49742499995045364,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8450342461581233,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G8",
+      "source_line": 8,
+      "adapt_time_seconds_excluding_bruteforce": 4.2841532999882475,
+      "llm_time_seconds": 0.5052835000678897,
+      "adapt_num_layers": 2,
+      "adapt_ar": 0.8501500371936846,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G9",
+      "source_line": 9,
+      "adapt_time_seconds_excluding_bruteforce": 10.57962169998791,
+      "llm_time_seconds": 0.5079628999810666,
+      "adapt_num_layers": 5,
+      "adapt_ar": 0.8123062342782221,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G10",
+      "source_line": 10,
+      "adapt_time_seconds_excluding_bruteforce": 6.220439299941063,
+      "llm_time_seconds": 0.48940620000939816,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8291873960879921,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G11",
+      "source_line": 11,
+      "adapt_time_seconds_excluding_bruteforce": 7.389329999918118,
+      "llm_time_seconds": 0.4489387000212446,
+      "adapt_num_layers": 4,
+      "adapt_ar": 0.8623762370019946,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G12",
+      "source_line": 12,
+      "adapt_time_seconds_excluding_bruteforce": 6.10388450010214,
+      "llm_time_seconds": 0.47885150008369237,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8338288249980759,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G13",
+      "source_line": 13,
+      "adapt_time_seconds_excluding_bruteforce": 7.117926600039937,
+      "llm_time_seconds": 0.524033399997279,
+      "adapt_num_layers": 2,
+      "adapt_ar": 0.8058198326328059,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G14",
+      "source_line": 14,
+      "adapt_time_seconds_excluding_bruteforce": 7.370568000013009,
+      "llm_time_seconds": 0.431626099976711,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8440262085037246,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G15",
+      "source_line": 15,
+      "adapt_time_seconds_excluding_bruteforce": 8.071475800010376,
+      "llm_time_seconds": 0.39322420000098646,
+      "adapt_num_layers": 4,
+      "adapt_ar": 0.8611111106610938,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G16",
+      "source_line": 16,
+      "adapt_time_seconds_excluding_bruteforce": 10.481435299967416,
+      "llm_time_seconds": 0.47659109998494387,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8406249996090928,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G17",
+      "source_line": 17,
+      "adapt_time_seconds_excluding_bruteforce": 4.381861099973321,
+      "llm_time_seconds": 0.5018216000171378,
+      "adapt_num_layers": 2,
+      "adapt_ar": 0.830781010496342,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G18",
+      "source_line": 18,
+      "adapt_time_seconds_excluding_bruteforce": 10.801625399966724,
+      "llm_time_seconds": 0.502547400072217,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8613793093880319,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G19",
+      "source_line": 19,
+      "adapt_time_seconds_excluding_bruteforce": 9.326989799970761,
+      "llm_time_seconds": 0.5913087000371888,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8393895346029832,
+      "llm_num_layers": 6
+    },
+    {
+      "graph_id": "G20",
+      "source_line": 20,
+      "adapt_time_seconds_excluding_bruteforce": 8.38542409997899,
+      "llm_time_seconds": 0.4660956000443548,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8168604650279864,
+      "llm_num_layers": 6
+    }
+  ]
+}

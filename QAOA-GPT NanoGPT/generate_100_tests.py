@@ -11,15 +11,19 @@ from model import GPTConfig, GPT
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 INPUT_FILE = os.path.join(BASE_DIR, "..", "QAOA-GPT Testing", "test_graphs_kingston.txt")
-OUTPUT_FILE = os.path.join(BASE_DIR, "..", "QAOA-GPT Testing", "generated_circuits_kingston.txt")
+OUTPUT_FILE = os.path.join(BASE_DIR, "..", "QAOA-GPT Testing", "generated_circuits_kingston_100x10.txt")
 
 out_dir = "out-qaoa"
+checkpoint_file = "third_hardware_kingston.pt"
 data_dir = "data/qaoa"
 
 device = "cpu"
 max_new_tokens = 120
 temperature = 0.8
 top_k = 50
+
+NUM_GRAPHS_TO_USE = 100
+NUM_SAMPLES_PER_GRAPH = 10
 
 STOP_TOKEN = "<bos>"
 
@@ -42,8 +46,10 @@ stoi = meta["stoi"]
 itos = meta["itos"]
 vocab_size = meta["vocab_size"]
 
+
 def encode(tokens):
     return torch.tensor([stoi[t] for t in tokens], dtype=torch.long)
+
 
 def get_num_qubits_from_graph_tokens(tokens):
     nodes = set()
@@ -57,8 +63,10 @@ def get_num_qubits_from_graph_tokens(tokens):
                 pass
     return max(nodes) + 1 if nodes else 0
 
+
 def is_next_token_op_index(token):
     return token.startswith("<new_layer_")
+
 
 def allowed_op_token_ids(n_qubits, coupling_map, stoi):
     """
@@ -92,6 +100,7 @@ def allowed_op_token_ids(n_qubits, coupling_map, stoi):
             allowed_ids.append(stoi[tok])
 
     return allowed_ids
+
 
 def extract_maxcut_graph_body(tokens):
     """
@@ -129,6 +138,7 @@ def extract_maxcut_graph_body(tokens):
         i += 1
 
     return clean
+
 
 def trim_generated_circuit(out_tokens):
     """
@@ -173,10 +183,61 @@ def trim_generated_circuit(out_tokens):
 
     return cleaned
 
+
+def generate_one_sample(prompt_tokens, model, n_qubits, allowed_op_ids, temperature, top_k):
+    """
+    Generate one stochastic circuit continuation from a single prompt.
+    """
+    x = encode(prompt_tokens)[None, :].to(device)
+
+    generated = prompt_tokens.copy()
+    x_step = x
+
+    with torch.no_grad():
+        for _ in range(max_new_tokens):
+            idx_cond = (
+                x_step
+                if x_step.size(1) <= model.config.block_size
+                else x_step[:, -model.config.block_size:]
+            )
+
+            logits, _ = model(idx_cond)
+            logits = logits[:, -1, :] / temperature
+
+            # If previous token is <new_layer_k>, next token must be
+            # a legal operator-index token on the Kingston coupling map.
+            if is_next_token_op_index(generated[-1]):
+                mask = torch.full_like(logits, -float("Inf"))
+                if allowed_op_ids:
+                    allowed_list = list(allowed_op_ids)
+                    mask[:, allowed_list] = logits[:, allowed_list]
+                logits = mask
+
+            if top_k is not None:
+                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+                logits[logits < v[:, [-1]]] = -float("Inf")
+
+            probs = torch.nn.functional.softmax(logits, dim=-1)
+            idx_next = torch.multinomial(probs, num_samples=1)
+
+            x_step = torch.cat((x_step, idx_next), dim=1)
+            next_token = itos[idx_next.item()]
+            generated.append(next_token)
+
+            if next_token == STOP_TOKEN and len(generated) > len(prompt_tokens):
+                break
+
+    out_tokens = generated[len(prompt_tokens):]
+    return trim_generated_circuit(out_tokens)
+
+
 # ---------------------------------------------------
 # LOAD MODEL
 # ---------------------------------------------------
-checkpoint = torch.load(f"{out_dir}/third_hardware_kingston.pt", map_location=device)
+checkpoint = torch.load(
+    os.path.join(out_dir, checkpoint_file),
+    map_location=device
+)
 
 gptconf = GPTConfig(
     vocab_size=vocab_size,
@@ -197,88 +258,78 @@ model.to(device)
 # ---------------------------------------------------
 start_time = datetime.now()
 
+graphs_used = 0
+samples_written = 0
+
 with open(INPUT_FILE, "r", encoding="utf-8", newline="") as fin, \
      open(OUTPUT_FILE, "w", encoding="utf-8") as fout:
 
     reader = csv.reader(fin)
 
-    for line_idx, row in enumerate(reader):
+    for line_idx, row in enumerate(reader, start=1):
+        if graphs_used >= NUM_GRAPHS_TO_USE:
+            break
+
         tokens = [t.strip() for t in row if t.strip() and not t.startswith("<seed=")]
 
         if not tokens:
             continue
 
-        try:
-            x = encode(tokens)[None, :].to(device)
-        except KeyError as e:
-            print(f"Skipping graph {line_idx + 1}: unknown token {e}")
-            continue
-
         n_qubits = get_num_qubits_from_graph_tokens(tokens)
         if n_qubits != 7:
-            print(f"Skipping graph {line_idx + 1}: expected 7 qubits, got {n_qubits}")
+            print(f"Skipping graph {line_idx}: expected 7 qubits, got {n_qubits}")
+            continue
+
+        try:
+            # sanity check that all prompt tokens are in vocab
+            _ = encode(tokens)
+        except KeyError as e:
+            print(f"Skipping graph {line_idx}: unknown token {e}")
+            continue
+
+        graph_body = extract_maxcut_graph_body(tokens)
+        if not graph_body:
+            print(f"Skipping graph {line_idx}: could not extract MaxCut graph body")
             continue
 
         allowed_op_ids = set(
             allowed_op_token_ids(n_qubits, KINGSTON_7Q_COUPLING_MAP, stoi)
         )
 
-        generated = tokens.copy()
-        x_step = x
+        graphs_used += 1
+        print(f"\nGraph {graphs_used}/{NUM_GRAPHS_TO_USE} (source line {line_idx})")
 
-        with torch.no_grad():
-            for _ in range(max_new_tokens):
-                idx_cond = (
-                    x_step
-                    if x_step.size(1) <= model.config.block_size
-                    else x_step[:, -model.config.block_size:]
-                )
+        for sample_idx in range(1, NUM_SAMPLES_PER_GRAPH + 1):
+            circuit_tokens = generate_one_sample(
+                prompt_tokens=tokens,
+                model=model,
+                n_qubits=n_qubits,
+                allowed_op_ids=allowed_op_ids,
+                temperature=temperature,
+                top_k=top_k,
+            )
 
-                logits, _ = model(idx_cond)
-                logits = logits[:, -1, :] / temperature
+            final_tokens = (
+                ["<maxcut_graph>"]
+                + graph_body
+                + ["<end_of_maxcut_graph>", "<circuit>"]
+                + circuit_tokens
+                + ["<end_of_circuit>"]
+            )
 
-                # If previous token is <new_layer_k>, next token must be
-                # a valid operator-index token for the Kingston coupling map.
-                if is_next_token_op_index(generated[-1]):
-                    mask = torch.full_like(logits, -float("Inf"))
-                    if allowed_op_ids:
-                        allowed_list = list(allowed_op_ids)
-                        mask[:, allowed_list] = logits[:, allowed_list]
-                    logits = mask
+            fout.write(" ".join(final_tokens) + "\n")
+            fout.flush()
 
-                if top_k is not None:
-                    v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
-                    logits[logits < v[:, [-1]]] = -float("Inf")
-
-                probs = torch.nn.functional.softmax(logits, dim=-1)
-                idx_next = torch.multinomial(probs, num_samples=1)
-
-                x_step = torch.cat((x_step, idx_next), dim=1)
-                next_token = itos[idx_next.item()]
-                generated.append(next_token)
-
-                if next_token == STOP_TOKEN and len(generated) > len(tokens):
-                    break
-
-        out_tokens = generated[len(tokens):]
-        graph_body = extract_maxcut_graph_body(tokens)
-        circuit_tokens = trim_generated_circuit(out_tokens)
-
-        final_tokens = (
-            ["<maxcut_graph>"]
-            + graph_body
-            + ["<end_of_maxcut_graph>", "<circuit>"]
-            + circuit_tokens
-            + ["<end_of_circuit>"]
-        )
-
-        fout.write(" ".join(final_tokens) + "\n")
-        fout.flush()
-
-        print(f"Generated circuit {line_idx + 1}")
+            samples_written += 1
+            print(
+                f"  wrote sample {sample_idx}/{NUM_SAMPLES_PER_GRAPH} "
+                f"(total {samples_written})"
+            )
 
 end_time = datetime.now()
 elapsed = end_time - start_time
 
-print(f"\n✅ All circuits written to {OUTPUT_FILE}")
+print(f"\n✅ All generated circuits written to {OUTPUT_FILE}")
+print(f"✅ Graphs used: {graphs_used}")
+print(f"✅ Total samples written: {samples_written}")
 print(f"⏱️ Total generation time: {elapsed}")

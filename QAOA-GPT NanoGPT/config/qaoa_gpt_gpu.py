@@ -8,14 +8,14 @@ eval_interval = 200
 eval_iters = 50
 log_interval = 20
 
-vocab_size = 736
+vocab_size = 955
 
 # Training length
-max_iters = 25000         # good starting point (was 20000)
-lr_decay_iters = 25000  # was 20000
+max_iters = 39000         # good starting point (was 20000)
+lr_decay_iters = 39000  # was 20000
 warmup_iters = 1500
 
-init_from = 'scratch' # 'scratch' or 'resume' or 'gpt2*'
+init_from = 'resume' # 'scratch' or 'resume' or 'gpt2*'
 
 
 # Batch & sequence
@@ -37,7 +37,7 @@ beta2 = 0.95
 grad_clip = 1.0
 
 # Regularization
-dropout = 0.0
+dropout = 0.1
 bias = False
 
 # AdamW
@@ -46,7 +46,7 @@ optimizer = 'adamw'
 # Hardware
 device = 'cuda'           # use 'cpu' if no GPU
 dtype = 'float16'         # 'float32' if CPU
-compile = False
+compile = True
 
 # Disable wandb
 wandb_log = False

@@ -15,7 +15,7 @@ max_iters = 16000         # good starting point (was 20000)
 lr_decay_iters = 16000  # was 20000
 warmup_iters = 100
 
-init_from = 'scratch' # 'scratch' or 'resume' or 'gpt2*'
+init_from = 'resume' # 'scratch' or 'resume' or 'gpt2*'
 
 
 # Batch & sequence
