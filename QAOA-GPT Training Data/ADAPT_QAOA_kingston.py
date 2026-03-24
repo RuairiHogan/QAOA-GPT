@@ -15,7 +15,7 @@ EDGE_PROB_RANGE = (0.3, 0.9)
 MAX_DEPTH = 9
 GAMMA0_GRID = [0.01, 0.1, 0.5, 1.0]
 TARGET_AR = 0.97
-DATASET_FILE = "qaoa_gpt_dataset_kingston_7q.jsonl"
+DATASET_FILE = "qaoa_gpt_dataset_kingston_temp_data.jsonl"
 SEED = int(time.time())
 
 # "PQAOA" -> HB only
