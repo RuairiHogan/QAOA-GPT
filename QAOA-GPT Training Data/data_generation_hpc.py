@@ -68,49 +68,6 @@ KINGSTON_PHYSICAL_QUBITS = [4, 5, 6, 7, 8, 9, 17]
 LOGICAL_TO_PHYSICAL = {0: 4, 1: 5, 2: 6, 3: 7, 4: 8, 5: 9, 6: 17}
 PHYSICAL_TO_LOGICAL = {v: k for k, v in LOGICAL_TO_PHYSICAL.items()}
 
-KINGSTON_7Q_COUPLING_MAP = [
-    (0, 1),
-    (1, 2),
-    (2, 3),
-    (3, 4),
-    (4, 5),
-    (3, 6),
-]
-
-#########################################################
-# Hardware connectivity config
-#########################################################
-
-class HardwareConfig:
-    def __init__(self, n_qubits, coupling_map):
-        self.n_qubits = n_qubits
-        self.coupling_map = sorted({tuple(sorted(edge)) for edge in coupling_map})
-        self.coupling_set = set(self.coupling_map)
-
-    def is_edge_allowed(self, i, j):
-        return tuple(sorted((i, j))) in self.coupling_set
-
-    def __repr__(self):
-        return f"HardwareConfig(n_qubits={self.n_qubits}, coupling_map={self.coupling_map})"
-
-
-def is_operator_allowed(op_name, hardware):
-    """Check if a single- or two-qubit operator is allowed on this hardware."""
-    if op_name.startswith(("X_", "Y_", "Z_")) and op_name.count("_") == 1:
-        return True
-
-    parts = op_name.split("_")
-    if len(parts) == 4:
-        _, i_str, _, j_str = parts
-        try:
-            i = int(i_str)
-            j = int(j_str)
-        except ValueError:
-            return False
-        return hardware.is_edge_allowed(i, j)
-
-    return False
-
 #########################################################
 # Utility: exact OPT(G) for MaxCut
 #########################################################
@@ -223,24 +180,12 @@ def build_operator_list_and_mats(n, I, X, Y, Z, coupling_map=None):
 
         paulis = {"X": X, "Y": Y, "Z": Z}
 
-        if coupling_map is None:
-            coupling_map = [(i, j) for i in range(n) for j in range(i + 1, n)]
+        full_pairs = [(i, j) for i in range(n) for j in range(i + 1, n)]
 
-        edge_set = sorted({
-            tuple(sorted(e))
-            for e in coupling_map
-            if 0 <= e[0] < n and 0 <= e[1] < n and e[0] != e[1]
-        })
-
-        hardware = HardwareConfig(n, edge_set)
-
-        for (i, j) in edge_set:
+        for (i, j) in full_pairs:
             for B in ["X", "Y", "Z"]:
                 for C in ["X", "Y", "Z"]:
-                    op_name = f"{B}_{i}_{C}_{j}"
-                    if not is_operator_allowed(op_name, hardware):
-                        continue
-                    op_names.append(op_name)
+                    op_names.append(f"{B}_{i}_{C}_{j}")
                     op_mats.append(paulis[B][i] @ paulis[C][j])
 
     else:
@@ -483,7 +428,6 @@ def write_dataset_entry(
     tier,
     op_pool_mode,
     gamma0,
-    coupling_map,
     depth,
     two_qubit_count,
     score,
@@ -504,49 +448,10 @@ def write_dataset_entry(
         "hardware_name": "ibm_kingston_7q_subgraph",
         "physical_qubits": KINGSTON_PHYSICAL_QUBITS,
         "logical_to_physical": LOGICAL_TO_PHYSICAL,
-        "hardware_coupling_map": coupling_map,
         "tokens": tokens
     }
     with open(filename, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
-
-#########################################################
-# Test
-#########################################################
-
-def test_hardware_constrained_operator_pool():
-    n = 7
-    coupling_map = KINGSTON_7Q_COUPLING_MAP
-    hw = HardwareConfig(n, coupling_map)
-    I, X, Y, Z = build_single_qubit_paulis(n)
-
-    op_names, _ = build_operator_list_and_mats(n, I, X, Y, Z, coupling_map=hw.coupling_map)
-
-    expected_singles = (
-        {f"X_{i}" for i in range(n)}
-        | {f"Y_{i}" for i in range(n)}
-        | {f"Z_{i}" for i in range(n)}
-    )
-
-    expected_two_qubit = {
-        f"{B}_{i}_{C}_{j}"
-        for (i, j) in coupling_map
-        for B in ["X", "Y", "Z"]
-        for C in ["X", "Y", "Z"]
-    }
-
-    assert expected_singles.issubset(set(op_names)), "Missing single-qubit operators"
-    assert expected_two_qubit.issubset(set(op_names)), "Missing allowed two-qubit operators"
-
-    forbidden = {
-        "Z_0_Z_6",
-        "Z_1_Z_5",
-        "Z_2_Z_4",
-        "X_0_Y_4",
-    }
-    assert forbidden.isdisjoint(set(op_names)), "Forbidden two-qubit operators should be excluded"
-
-    print("✅ Kingston 7-qubit hardware-constrained operator pool test passed")
 
 #########################################################
 # Main
@@ -561,10 +466,6 @@ def main():
 
     written = 0
     attempts = 0
-
-    test_hardware_constrained_operator_pool()
-
-    hardware = HardwareConfig(NUM_QUBITS, coupling_map=KINGSTON_7Q_COUPLING_MAP)
 
     print(f"Connecting to backend: {BACKEND_NAME}")
     service = QiskitRuntimeService()
@@ -592,7 +493,7 @@ def main():
         Hc = cost_hamiltonian_Hc(G)
 
         op_names, op_mats = build_operator_list_and_mats(
-            n, I, X, Y, Z, coupling_map=hardware.coupling_map
+            n, I, X, Y, Z, coupling_map=None
         )
 
         candidates = []
@@ -654,7 +555,6 @@ def main():
                 cand["tier"],
                 OP_POOL_MODE,
                 cand["gamma0"],
-                hardware.coupling_map,
                 cand["depth"],
                 cand["two_qubit_count"],
                 cand["score"],
