@@ -2,7 +2,7 @@
 
 import json
 
-INPUT = "../QAOA-GPT Training Data/qaoa_gpt_dataset_kingston_canonical.jsonl"
+INPUT = "../QAOA-GPT Training Data/transpilation_dataset_canonical.jsonl"
 OUTPUT = "train.txt"
 
 with open(INPUT, "r") as fin, open(OUTPUT, "w") as fout:

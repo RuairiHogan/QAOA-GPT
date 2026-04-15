@@ -14,7 +14,7 @@ with open(train_path) as f:
 
 random.shuffle(lines)
 
-split = int(0.95 * len(lines))
+split = int(0.90 * len(lines))
 train_lines = lines[:split]
 val_lines = lines[split:]
 
