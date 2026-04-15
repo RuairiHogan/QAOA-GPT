@@ -18,7 +18,7 @@ N_QUBITS = 7
 INITIAL_LAYOUT = [4, 5, 6, 7, 8, 9, 17]
 SHOTS = 1024
 
-KINGSTON_FILE = "generated_circuits_kingston_21.txt"
+KINGSTON_FILE = "generated_circuits_kingston.txt"
 OLD_FILE = "generated_circuits.txt"
 
 # how many circuits per submitted job

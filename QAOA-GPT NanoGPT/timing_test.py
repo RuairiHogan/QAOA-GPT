@@ -513,6 +513,8 @@ def generate_one_llm_circuit(prompt_tokens):
 #########################################################
 
 def plot_times(graph_ids, adapt_times, llm_times, output_path):
+    plt.rcParams["font.family"] = "Times New Roman"
+
     x = np.arange(len(graph_ids))
     width = 0.7
 

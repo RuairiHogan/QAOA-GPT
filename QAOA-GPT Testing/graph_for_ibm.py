@@ -1,10 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
+plt.rcParams["font.family"] = "Times New Roman"
 
 # Data
-labels = ["Control GPT", "Hardware-Aware GPT"]
-means = [0.6741952090839152, 0.6956347008482188]
-stds = [0.03482898514930579, 0.039232521255201755]
+labels = ["Hardware-Aware GPT", "Control GPT"] #["Control GPT", "Hardware-Aware GPT"]
+means = [0.6754515364854129, 0.7288914788618485]
+stds = [0.03876602123880095, 0.047302369360409234]
 
 x = np.arange(len(labels))
 
@@ -18,7 +19,7 @@ ax.set_ylabel("Mean Approximation Ratio")
 ax.set_title("Mean Approximation Ratio with Standard Deviation")
 
 # Optional: set a sensible y-range to make the difference visible
-ax.set_ylim(0.6, 0.75)
+ax.set_ylim(0.3, 0.78)
 
 # Add value labels on top of bars
 for i, bar in enumerate(bars):

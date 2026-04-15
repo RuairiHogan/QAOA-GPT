@@ -287,4 +287,4 @@ def test_all_circuits(test_file):
     print("==============================\n")
 
 if __name__ == "__main__":
-    test_all_circuits("generated_circuits_kingston_21.txt")
+    test_all_circuits("generated_circuits_kingston.txt")

@@ -21,6 +21,9 @@ EXPECTED_NUM_GRAPHS = 100
 INDEX_Y_PAD = 0.3
 SCATTER_Y_PAD = 0.3
 
+plt.rcParams["font.family"] = "Times New Roman"
+
+
 KINGSTON_7Q_COUPLING_MAP = [
     (0, 1),
     (1, 2),
