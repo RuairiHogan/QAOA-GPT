@@ -26,11 +26,9 @@ def cost_hamiltonian_Hc(graph):
     for (i, j) in graph.edges:
         w = float(graph[i][j]["weight"])
 
-        # + w/2 * I
         paulis.append(("I" * n)[::-1])
         coeffs.append(0.5 * w)
 
-        # - w/2 * ZiZj
         s = ["I"] * n
         s[i] = "Z"
         s[j] = "Z"
@@ -53,19 +51,17 @@ def apply_pauli_exp_to_state(psi, P, theta, sign):
 def build_operator_pool(n):
     X, Y, Z = [], [], []
     for i in range(n):
-        X.append(qi.Pauli(("I"*i + "X" + "I"*(n-i-1))[::-1]).to_matrix())
-        Y.append(qi.Pauli(("I"*i + "Y" + "I"*(n-i-1))[::-1]).to_matrix())
-        Z.append(qi.Pauli(("I"*i + "Z" + "I"*(n-i-1))[::-1]).to_matrix())
+        X.append(qi.Pauli(("I" * i + "X" + "I" * (n - i - 1))[::-1]).to_matrix())
+        Y.append(qi.Pauli(("I" * i + "Y" + "I" * (n - i - 1))[::-1]).to_matrix())
+        Z.append(qi.Pauli(("I" * i + "Z" + "I" * (n - i - 1))[::-1]).to_matrix())
 
     op_mats = []
 
-    # singles (ORDER MATTERS)
     for i in range(n):
         op_mats.append(X[i])
         op_mats.append(Y[i])
         op_mats.append(Z[i])
 
-    # two-qubit Pauli strings (ORDER MATTERS)
     paulis = {"X": X, "Y": Y, "Z": Z}
     for i in range(n):
         for j in range(i + 1, n):
@@ -76,18 +72,25 @@ def build_operator_pool(n):
     return op_mats
 
 
-
 ########################################
 # TOKEN PARSING
 ########################################
 
 def parse_tokens(tokens):
     i = 0
-    assert tokens[i] == "<bos>"
+
+    if tokens[i] == "<score_elite>":
+        i += 1
+
+    if tokens[i] != "<bos>":
+        raise ValueError(f"Expected <bos>, found {tokens[i]}")
     i += 1
 
+    if tokens[i] == "<maxcut_graph>":
+        i += 1
+
     edges = []
-    while tokens[i] != "<end_of_graph>":
+    while tokens[i] != "<end_of_maxcut_graph>":
         u, v = tokens[i].strip("()").split(",")
         w = float(tokens[i + 1])
         edges.append((int(u), int(v), w))
@@ -98,15 +101,21 @@ def parse_tokens(tokens):
     for u, v, w in edges:
         G.add_edge(u, v, weight=w)
 
+    if i < len(tokens) and tokens[i] == "<circuit>":
+        i += 1
+
     ops, gammas, betas = [], [], []
-    while i < len(tokens):
+    while i < len(tokens) and tokens[i] != "<end_of_circuit>":
         if tokens[i].startswith("<new_layer_"):
             ops.append(int(tokens[i + 1]))
             gammas.append(float(tokens[i + 2]))
             betas.append(float(tokens[i + 3]))
             i += 4
         else:
-            break
+            raise ValueError(f"Unexpected token in circuit body: {tokens[i]}")
+
+    if i >= len(tokens) or tokens[i] != "<end_of_circuit>":
+        raise ValueError("Missing <end_of_circuit> token")
 
     return G, ops, gammas, betas
 
@@ -119,7 +128,6 @@ def evaluate_circuit(G, ops, gammas, betas, op_mats):
     n = G.number_of_nodes()
     psi = np.ones(2**n, dtype=complex) / np.sqrt(2**n)
 
-    # Precompute ZZ edges
     edge_terms = []
     for (i, j) in G.edges:
         w = G[i][j]["weight"]
@@ -129,7 +137,6 @@ def evaluate_circuit(G, ops, gammas, betas, op_mats):
         ZZ = qi.Pauli("".join(s)[::-1]).to_matrix()
         edge_terms.append((w, ZZ))
 
-    # Apply circuit
     for k in range(len(ops)):
         for w, ZZ in edge_terms:
             psi = apply_pauli_exp_to_state(psi, ZZ, gammas[k] * w / 2, sign=+1)
@@ -149,13 +156,13 @@ def evaluate_circuit(G, ops, gammas, betas, op_mats):
 ########################################
 
 def test_all_circuits(test_file):
-    with open(test_file, "r") as f:
+    with open(test_file, "r", encoding="utf-8") as f:
         lines = [l.strip() for l in f if l.strip()]
 
     ratios = []
     failed = 0
-
     perfect = 0
+
     print(f"Testing {len(lines)} circuits...\n")
 
     for idx, line in enumerate(lines):
@@ -171,18 +178,17 @@ def test_all_circuits(test_file):
             ar = approx / opt if opt > 0 else 0.0
             ratios.append(ar)
 
-            if np.isclose(ar, 1.0, atol=1e-6):   # <-- ADDED
+            if np.isclose(ar, 1.0, atol=1e-6):
                 perfect += 1
 
-            print(f"Circuit {idx+1:3d}: AR = {ar:.4f}")
-
-
+            print(f"Circuit {idx + 1:3d}: AR = {ar:.4f}")
 
         except Exception as e:
             failed += 1
-            print(f"Circuit {idx+1:3d}: FAILED ({e})")
+            print(f"Circuit {idx + 1:3d}: FAILED ({e})")
 
         print("\n==============================")
+
     total = len(lines)
     valid = len(ratios)
 
@@ -208,14 +214,12 @@ def test_all_circuits(test_file):
         print()
         print(f"Best-performing circuit  : {best_ar:.4f}")
         print(f"Worst valid circuit      : {worst_ar:.4f}")
-        print(f"No. of perfect circuits  : ", perfect)
+        print(f"No. of perfect circuits  : {perfect}")
     else:
         print("No valid circuits evaluated.")
 
     print("==============================\n")
 
 
-
 if __name__ == "__main__":
-    test_all_circuits("generated_circuits_og_20.txt")
-
+    test_all_circuits("IBM_Hardware_Trans/generated_circuits_trans_20.txt")

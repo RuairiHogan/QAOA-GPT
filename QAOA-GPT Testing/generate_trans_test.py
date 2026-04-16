@@ -31,14 +31,14 @@ with open(OUT_FILE, "w", encoding="utf-8") as f:
         seed = base_seed + i
         graph = generate_connected_graph(seed)
 
-        tokens = ['"<score_elite>"', '"<bos>"']
+        tokens = ["<score_elite>", "<bos>", "<maxcut_graph>"]
 
         for u, v in graph.edges():
-            tokens.append(f'"({u},{v})"')
-            tokens.append(f'"{graph[u][v]["weight"]}"')
+            tokens.append(f"({u},{v})")
+            tokens.append(str(graph[u][v]["weight"]))
 
-        tokens.append('"<end_of_maxcut_graph>"')
+        tokens.append("<end_of_maxcut_graph>")
 
-        f.write(",".join(tokens) + "\n")
+        f.write(" ".join(tokens) + "\n")
 
 print(f"Wrote {NUM_GRAPHS} graphs to {OUT_FILE}")

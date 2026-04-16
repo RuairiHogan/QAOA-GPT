@@ -11,11 +11,11 @@ from model import GPTConfig, GPT
 # ---------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-INPUT_FILE = os.path.join(BASE_DIR, "testing", "test_graphs_trans.txt")
-OUTPUT_FILE = os.path.join(BASE_DIR, "testing", "generated_circuits_trans.txt")
+INPUT_FILE = os.path.join(BASE_DIR, ".." , "QAOA-GPT Testing", "test_graphs_trans_optimal_50.txt")
+OUTPUT_FILE = os.path.join(BASE_DIR, ".." , "QAOA-GPT Testing", "generated_circuits_trans_optimal_50.txt")
 
-CHECKPOINT_FILE = os.path.join(BASE_DIR, "out-qaoa", "no_emb_ckpt.pt")
-META_FILE = os.path.join(BASE_DIR, "data", "qaoa", "no_emb_meta.pkl")
+CHECKPOINT_FILE = os.path.join(BASE_DIR, "out-qaoa", "second_transpilation.pt")
+META_FILE = os.path.join(BASE_DIR, "data", "qaoa", "meta_for_both_trans.pkl")
 
 device = "cpu"
 max_new_tokens = 180
