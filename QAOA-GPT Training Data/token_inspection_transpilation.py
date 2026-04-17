@@ -1,8 +1,8 @@
 import json
 from collections import Counter
 
-INPUT_FILE = "transpilation_dataset.jsonl"
-OUTPUT_FILE = "transpilation_dataset_canonical.jsonl"
+INPUT_FILE = "transpilation_dataset_0_01.jsonl"
+OUTPUT_FILE = "transpilation_dataset_0_01_canonical.jsonl"
 
 
 def canonicalize_token(tok):

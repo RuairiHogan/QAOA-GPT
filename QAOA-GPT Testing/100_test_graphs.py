@@ -236,12 +236,12 @@ def compute_y_limits(*series, pad=0.01, upper_cap=1.0):
 
 
 def style_axis(ax, title, ymin, ymax):
-    ax.set_title(title, fontsize=14, pad=12)
-    ax.set_xlabel("Graph index", fontsize=12)
-    ax.set_ylabel("Approximation ratio", fontsize=12)
+    ax.set_xlabel("Graph index", fontsize=22)
+    ax.set_ylabel("Approximation ratio", fontsize=22)
     ax.set_ylim(ymin, ymax)
     ax.grid(True, linestyle="--", alpha=0.35)
-    ax.legend(frameon=True, fontsize=9)
+    ax.legend(frameon=True, fontsize=22)
+    ax.tick_params(axis="both", labelsize=18)
 
 ########################################
 # PLOTTING
@@ -357,7 +357,7 @@ def make_scatter_plot(best_ars, avg_ars, output_plot):
 
     style_axis(ax, "Ideal-Simulation Approximation Ratio Across Test Graphs", ymin, ymax)
     ax.set_xlim(1, len(best_ars))
-    ax.legend(loc="lower left", frameon=True, fontsize=9)
+    ax.legend(loc="lower left", frameon=True, fontsize=22)
 
     fig.tight_layout()
     fig.savefig(output_plot, dpi=300, bbox_inches="tight")
