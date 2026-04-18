@@ -9,9 +9,9 @@ TICK_FONT_SIZE = 18
 BAR_COLORS = ["#00B8D9", "#d4b595"]
 
 # Data
-labels = ["Coupling-Aware GPT", "Unconstrained GPT"]  # ["Control GPT", "Hardware-Aware GPT"]
-means = [0.6754515364854129, 0.7288914788618485]
-stds = [0.03876602123880095, 0.047302369360409234]
+labels = ["Transpilation-Aware GPT", "Unconstrained GPT"]  # ["Control GPT", "Hardware-Aware GPT"]
+means = [0.7418950379636859, 0.7059709509882383]
+stds = [0.04113973250426876, 0.048662851449943714]
 
 x = np.arange(len(labels))
 

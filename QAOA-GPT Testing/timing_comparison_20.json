@@ -2,192 +2,197 @@
   "summary": {
     "num_graphs": 20,
     "plot_mode": "stacked",
-    "adapt_mean_time_seconds_excluding_bruteforce": 17.54354296500096,
-    "adapt_median_time_seconds_excluding_bruteforce": 16.078578950022347,
-    "llm_mean_time_seconds": 0.8540908249968198,
-    "llm_median_time_seconds": 0.8482685999479145,
-    "mean_speedup_adapt_over_llm": 20.930138235397873
+    "adapt_mean_time_seconds_excluding_bruteforce": 9.641896925000015,
+    "adapt_median_time_seconds_excluding_bruteforce": 8.057404499999848,
+    "llm_mean_time_seconds": 0.4811559300000681,
+    "llm_median_time_seconds": 0.4769356000001608,
+    "mean_speedup_adapt_over_llm": 20.82765295361397
   },
   "per_graph_results": [
     {
       "graph_id": "G1",
       "source_line": 1,
-      "adapt_time_seconds_excluding_bruteforce": 7.684004300041124,
-      "llm_time_seconds": 0.9160477999830619,
+      "adapt_time_seconds_excluding_bruteforce": 6.308162100000118,
+      "llm_time_seconds": 0.5578445999999531,
       "adapt_num_layers": 2,
-      "adapt_ar": 0.8523391811451698,
-      "llm_num_layers": 5
+      "adapt_ar": 0.8536494710042137,
+      "llm_num_layers": 6
     },
     {
       "graph_id": "G2",
       "source_line": 2,
-      "adapt_time_seconds_excluding_bruteforce": 12.629163900041021,
-      "llm_time_seconds": 0.8039665999822319,
-      "adapt_num_layers": 4,
-      "adapt_ar": 0.8134587939838069,
+      "adapt_time_seconds_excluding_bruteforce": 16.30145450000009,
+      "llm_time_seconds": 0.5009616000002097,
+      "adapt_num_layers": 7,
+      "adapt_ar": 0.8281016308724641,
       "llm_num_layers": 6
     },
     {
       "graph_id": "G3",
       "source_line": 3,
-      "adapt_time_seconds_excluding_bruteforce": 26.49421420006547,
-      "llm_time_seconds": 0.6920227999798954,
-      "adapt_num_layers": 4,
-      "adapt_ar": 0.8126911313568427,
-      "llm_num_layers": 5
+      "adapt_time_seconds_excluding_bruteforce": 11.866749499999969,
+      "llm_time_seconds": 0.4554587000002357,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.84210526255901,
+      "llm_num_layers": 6
     },
     {
       "graph_id": "G4",
       "source_line": 4,
-      "adapt_time_seconds_excluding_bruteforce": 33.62616360001266,
-      "llm_time_seconds": 0.9329876999836415,
-      "adapt_num_layers": 4,
-      "adapt_ar": 0.874837027041403,
+      "adapt_time_seconds_excluding_bruteforce": 6.974693699999989,
+      "llm_time_seconds": 0.5398420999999871,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8438127614409137,
       "llm_num_layers": 6
     },
     {
       "graph_id": "G5",
       "source_line": 5,
-      "adapt_time_seconds_excluding_bruteforce": 24.116732600028627,
-      "llm_time_seconds": 0.6247863000025973,
-      "adapt_num_layers": 3,
-      "adapt_ar": 0.8696060025290498,
-      "llm_num_layers": 5
+      "adapt_time_seconds_excluding_bruteforce": 7.468517000000247,
+      "llm_time_seconds": 0.432366600000023,
+      "adapt_num_layers": 4,
+      "adapt_ar": 0.8675048350145598,
+      "llm_num_layers": 6
     },
     {
       "graph_id": "G6",
       "source_line": 6,
-      "adapt_time_seconds_excluding_bruteforce": 23.281864600023255,
-      "llm_time_seconds": 0.7902461999328807,
-      "adapt_num_layers": 5,
-      "adapt_ar": 0.8301922469733819,
+      "adapt_time_seconds_excluding_bruteforce": 3.361661699999786,
+      "llm_time_seconds": 0.504834800000026,
+      "adapt_num_layers": 2,
+      "adapt_ar": 0.8463170884018848,
       "llm_num_layers": 6
     },
     {
       "graph_id": "G7",
       "source_line": 7,
-      "adapt_time_seconds_excluding_bruteforce": 7.430973000009544,
-      "llm_time_seconds": 0.9240880000870675,
-      "adapt_num_layers": 2,
-      "adapt_ar": 0.847618833832678,
-      "llm_num_layers": 6
+      "adapt_time_seconds_excluding_bruteforce": 12.527020500000162,
+      "llm_time_seconds": 0.4235220999999001,
+      "adapt_num_layers": 5,
+      "adapt_ar": 0.8655371357265748,
+      "llm_num_layers": 5
     },
     {
       "graph_id": "G8",
       "source_line": 8,
-      "adapt_time_seconds_excluding_bruteforce": 20.47255960002076,
-      "llm_time_seconds": 1.1075073999818414,
-      "adapt_num_layers": 4,
-      "adapt_ar": 0.8268608412213728,
+      "adapt_time_seconds_excluding_bruteforce": 7.885941900000034,
+      "llm_time_seconds": 0.5011252000003878,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8352484119072029,
       "llm_num_layers": 6
     },
     {
       "graph_id": "G9",
       "source_line": 9,
-      "adapt_time_seconds_excluding_bruteforce": 32.56058779999148,
-      "llm_time_seconds": 0.9492856999859214,
-      "adapt_num_layers": 4,
-      "adapt_ar": 0.8719723172215157,
+      "adapt_time_seconds_excluding_bruteforce": 4.260050500000034,
+      "llm_time_seconds": 0.4099413999997523,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8530563416334913,
       "llm_num_layers": 6
     },
     {
       "graph_id": "G10",
       "source_line": 10,
-      "adapt_time_seconds_excluding_bruteforce": 11.480325499898754,
-      "llm_time_seconds": 0.7154960000189021,
-      "adapt_num_layers": 4,
-      "adapt_ar": 0.840335331659354,
-      "llm_num_layers": 6
+      "adapt_time_seconds_excluding_bruteforce": 3.6130741000001763,
+      "llm_time_seconds": 0.4589746000001469,
+      "adapt_num_layers": 2,
+      "adapt_ar": 0.827380952080955,
+      "llm_num_layers": 5
     },
     {
       "graph_id": "G11",
       "source_line": 11,
-      "adapt_time_seconds_excluding_bruteforce": 20.173402999993414,
-      "llm_time_seconds": 1.0607838000869378,
-      "adapt_num_layers": 5,
-      "adapt_ar": 0.8649905693702932,
-      "llm_num_layers": 6
+      "adapt_time_seconds_excluding_bruteforce": 11.068732400000044,
+      "llm_time_seconds": 0.37760960000014165,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8243464043896427,
+      "llm_num_layers": 5
     },
     {
       "graph_id": "G12",
       "source_line": 12,
-      "adapt_time_seconds_excluding_bruteforce": 18.838403399917297,
-      "llm_time_seconds": 1.49627840006724,
-      "adapt_num_layers": 3,
-      "adapt_ar": 0.8468789800401889,
-      "llm_num_layers": 6
+      "adapt_time_seconds_excluding_bruteforce": 24.491298599999936,
+      "llm_time_seconds": 0.41070540000009714,
+      "adapt_num_layers": 4,
+      "adapt_ar": 0.8299050621299336,
+      "llm_num_layers": 5
     },
     {
       "graph_id": "G13",
       "source_line": 13,
-      "adapt_time_seconds_excluding_bruteforce": 7.115161499939859,
-      "llm_time_seconds": 0.7333341999910772,
-      "adapt_num_layers": 2,
-      "adapt_ar": 0.8216589116239982,
+      "adapt_time_seconds_excluding_bruteforce": 7.038692099999935,
+      "llm_time_seconds": 0.6553847000000133,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8468085100587914,
       "llm_num_layers": 6
     },
     {
       "graph_id": "G14",
       "source_line": 14,
-      "adapt_time_seconds_excluding_bruteforce": 8.614335300051607,
-      "llm_time_seconds": 0.9410396999446675,
-      "adapt_num_layers": 2,
-      "adapt_ar": 0.8390287766916812,
+      "adapt_time_seconds_excluding_bruteforce": 7.494635499999731,
+      "llm_time_seconds": 0.5881601000000956,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8341158055779815,
       "llm_num_layers": 6
     },
     {
       "graph_id": "G15",
       "source_line": 15,
-      "adapt_time_seconds_excluding_bruteforce": 2.707443800056353,
-      "llm_time_seconds": 0.7505406000418589,
-      "adapt_num_layers": 1,
-      "adapt_ar": 0.8298595609717766,
+      "adapt_time_seconds_excluding_bruteforce": 8.872526600000128,
+      "llm_time_seconds": 0.419410599999992,
+      "adapt_num_layers": 5,
+      "adapt_ar": 0.8640684403861744,
       "llm_num_layers": 5
     },
     {
       "graph_id": "G16",
       "source_line": 16,
-      "adapt_time_seconds_excluding_bruteforce": 16.427790299989283,
-      "llm_time_seconds": 0.6696277000010014,
-      "adapt_num_layers": 3,
-      "adapt_ar": 0.8475562738403971,
-      "llm_num_layers": 5
+      "adapt_time_seconds_excluding_bruteforce": 8.593399299999874,
+      "llm_time_seconds": 0.5689228999999614,
+      "adapt_num_layers": 2,
+      "adapt_ar": 0.8183942610413851,
+      "llm_num_layers": 6
     },
     {
       "graph_id": "G17",
       "source_line": 17,
-      "adapt_time_seconds_excluding_bruteforce": 13.569308699923567,
-      "llm_time_seconds": 0.6026300999801606,
+      "adapt_time_seconds_excluding_bruteforce": 18.157536300000174,
+      "llm_time_seconds": 0.48490829999991547,
       "adapt_num_layers": 4,
-      "adapt_ar": 0.8579059826423391,
-      "llm_num_layers": 5
+      "adapt_ar": 0.8609756092190654,
+      "llm_num_layers": 6
     },
     {
       "graph_id": "G18",
       "source_line": 18,
-      "adapt_time_seconds_excluding_bruteforce": 5.581959999981336,
-      "llm_time_seconds": 0.5732644000090659,
-      "adapt_num_layers": 2,
-      "adapt_ar": 0.8153669715565584,
-      "llm_num_layers": 5
+      "adapt_time_seconds_excluding_bruteforce": 8.098245700000007,
+      "llm_time_seconds": 0.37927410000020245,
+      "adapt_num_layers": 3,
+      "adapt_ar": 0.8286366589500094,
+      "llm_num_layers": 4
     },
     {
       "graph_id": "G19",
       "source_line": 19,
-      "adapt_time_seconds_excluding_bruteforce": 42.337096599978395,
-      "llm_time_seconds": 0.9053124999627471,
-      "adapt_num_layers": 3,
-      "adapt_ar": 0.8064971928058247,
+      "adapt_time_seconds_excluding_bruteforce": 10.438983200000166,
+      "llm_time_seconds": 0.47345180000002074,
+      "adapt_num_layers": 4,
+      "adapt_ar": 0.8769995041509642,
       "llm_num_layers": 6
     },
     {
       "graph_id": "G20",
       "source_line": 20,
-      "adapt_time_seconds_excluding_bruteforce": 15.729367600055411,
-      "llm_time_seconds": 0.8925705999135971,
+      "adapt_time_seconds_excluding_bruteforce": 8.016563299999689,
+      "llm_time_seconds": 0.4804194000003008,
       "adapt_num_layers": 3,
-      "adapt_ar": 0.8435517965680801,
+      "adapt_ar": 0.8644189374532171,
       "llm_num_layers": 6
     }
   ]
 }
+
+
+Mean ADAPT time (no brute force): 9.6419s
+Mean LLM time               : 0.4812s
+Mean speedup                : 20.83x

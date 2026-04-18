@@ -1,15 +1,15 @@
-import os
-import csv
 import json
-import time
+import os
 import pickle
-import numpy as np
-import networkx as nx
-import matplotlib.pyplot as plt
-import torch
+import time
 
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+import torch
 from qiskit import quantum_info as qi
 from scipy.optimize import minimize
+
 from model import GPTConfig, GPT
 
 #########################################################
@@ -18,9 +18,9 @@ from model import GPTConfig, GPT
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-INPUT_FILE = os.path.join(BASE_DIR, "..", "QAOA-GPT Testing", "test_graphs_kingston.txt")
-OUTPUT_JSON = os.path.join(BASE_DIR, "..", "QAOA-GPT Testing", "timing_comparison_20.json")
-OUTPUT_PLOT = os.path.join(BASE_DIR, "..", "QAOA-GPT Testing", "timing_comparison_20.png")
+INPUT_FILE = os.path.join(BASE_DIR, "..", "QAOA-GPT Testing", "test_graphs_trans.txt")
+OUTPUT_JSON = os.path.join(BASE_DIR, "..", "QAOA-GPT Testing", "timing_comparison_trans_20.json")
+OUTPUT_PLOT = os.path.join(BASE_DIR, "..", "QAOA-GPT Testing", "timing_comparison_trans_20.png")
 
 # plot mode: "stacked" or "grouped"
 PLOT_MODE = "stacked"
@@ -36,27 +36,20 @@ OP_POOL_MODE = "PDUAL"
 
 # LLM settings
 out_dir = "out-qaoa"
-checkpoint_file = "third_hardware_kingston.pt"
+checkpoint_file = "second_transpilation.pt"
 data_dir = "data/qaoa"
+meta_file = "meta_for_both_trans.pkl"
 
 device = "cpu"
-max_new_tokens = 120
+max_new_tokens = 50
 temperature = 0.8
 top_k = 50
-STOP_TOKEN = "<bos>"
+END_CIRCUIT_TOKEN = "<end_of_circuit>"
 
+# Plot styling to match the trans test plotting file.
 LABEL_FONT_SIZE = 22
 LEGEND_FONT_SIZE = 22
 TICK_FONT_SIZE = 18
-
-KINGSTON_7Q_COUPLING_MAP = [
-    (0, 1),
-    (1, 2),
-    (2, 3),
-    (3, 4),
-    (4, 5),
-    (3, 6),
-]
 
 #########################################################
 # SHARED PARSING HELPERS
@@ -110,10 +103,9 @@ def parse_graph_from_prompt_tokens(tokens):
 def load_test_graph_prompts(input_file, num_graphs):
     prompts = []
 
-    with open(input_file, "r", encoding="utf-8", newline="") as fin:
-        reader = csv.reader(fin)
-        for line_idx, row in enumerate(reader, start=1):
-            tokens = [t.strip() for t in row if t.strip() and not t.startswith("<seed=")]
+    with open(input_file, "r", encoding="utf-8") as fin:
+        for line_idx, line in enumerate(fin, start=1):
+            tokens = [t.strip() for t in line.split() if t.strip() and not t.startswith("<seed=")]
             if not tokens:
                 continue
 
@@ -143,33 +135,6 @@ def load_test_graph_prompts(input_file, num_graphs):
 #########################################################
 # ADAPT-QAOA CODE
 #########################################################
-
-class HardwareConfig:
-    def __init__(self, n_qubits, coupling_map):
-        self.n_qubits = n_qubits
-        self.coupling_map = sorted({tuple(sorted(edge)) for edge in coupling_map})
-        self.coupling_set = set(self.coupling_map)
-
-    def is_edge_allowed(self, i, j):
-        return tuple(sorted((i, j))) in self.coupling_set
-
-
-def is_operator_allowed(op_name, hardware):
-    if op_name.startswith(("X_", "Y_", "Z_")) and op_name.count("_") == 1:
-        return True
-
-    parts = op_name.split("_")
-    if len(parts) == 4:
-        _, i_str, _, j_str = parts
-        try:
-            i = int(i_str)
-            j = int(j_str)
-        except ValueError:
-            return False
-        return hardware.is_edge_allowed(i, j)
-
-    return False
-
 
 def maxcut_opt_bruteforce(graph):
     n = graph.number_of_nodes()
@@ -268,15 +233,10 @@ def build_operator_list_and_mats(n, I, X, Y, Z, coupling_map=None):
         if 0 <= e[0] < n and 0 <= e[1] < n and e[0] != e[1]
     })
 
-    hardware = HardwareConfig(n, edge_set)
-
     for (i, j) in edge_set:
         for B in ["X", "Y", "Z"]:
             for C in ["X", "Y", "Z"]:
-                op_name = f"{B}_{i}_{C}_{j}"
-                if not is_operator_allowed(op_name, hardware):
-                    continue
-                op_names.append(op_name)
+                op_names.append(f"{B}_{i}_{C}_{j}")
                 op_mats.append(paulis[B][i] @ paulis[C][j])
 
     return op_names, op_mats
@@ -331,7 +291,7 @@ def run_adapt_qaoa_once(graph, Hc, opt_val, edge_terms, op_names, op_mats, I, X,
                 n, edge_terms, op_names, op_mats, X,
                 op_indices,
                 betas + [beta_new],
-                gammas + [gamma_new]
+                gammas + [gamma_new],
             )
             return -np.real(np.vdot(psi_tmp, Hc @ psi_tmp))
 
@@ -354,9 +314,7 @@ def generate_adapt_circuit_for_graph(G, opt_val):
     edge_terms = precompute_edge_ZZ(G)
     Hc = cost_hamiltonian_Hc(G)
 
-    op_names, op_mats = build_operator_list_and_mats(
-        n, I, X, Y, Z, coupling_map=KINGSTON_7Q_COUPLING_MAP
-    )
+    op_names, op_mats = build_operator_list_and_mats(n, I, X, Y, Z)
 
     best_result = None
     best_ar = -np.inf
@@ -375,7 +333,7 @@ def generate_adapt_circuit_for_graph(G, opt_val):
 # LLM CODE
 #########################################################
 
-with open(f"{data_dir}/meta_kingston.pkl", "rb") as f:
+with open(os.path.join(data_dir, meta_file), "rb") as f:
     meta = pickle.load(f)
 
 stoi = meta["stoi"]
@@ -387,69 +345,22 @@ def encode(tokens):
     return torch.tensor([stoi[t] for t in tokens], dtype=torch.long)
 
 
-def is_next_token_op_index(token):
-    return token.startswith("<new_layer_")
-
-
-def allowed_op_token_ids(n_qubits, coupling_map, stoi):
-    op_list = []
-
-    for i in range(n_qubits):
-        op_list.append(f"X_{i}")
-        op_list.append(f"Y_{i}")
-        op_list.append(f"Z_{i}")
-
-    edge_set = sorted({tuple(sorted(e)) for e in coupling_map})
-    for (i, j) in edge_set:
-        if i < 0 or j < 0 or i >= n_qubits or j >= n_qubits or i == j:
-            continue
-        for B in ["X", "Y", "Z"]:
-            for C in ["X", "Y", "Z"]:
-                op_list.append(f"{B}_{i}_{C}_{j}")
-
-    allowed_ids = []
-    for op_index in range(len(op_list)):
-        tok = str(op_index)
-        if tok in stoi:
-            allowed_ids.append(stoi[tok])
-
-    return allowed_ids
+def decode(indices):
+    return [itos[i] for i in indices]
 
 
 def trim_generated_circuit(out_tokens):
     cleaned = []
-    i = 0
-
-    while i < len(out_tokens):
-        t = out_tokens[i]
-
-        if t == STOP_TOKEN or t == "<end_of_circuit>" or t.startswith("<tier_"):
-            break
-
-        if t == "<circuit>":
-            i += 1
-            continue
-
-        if t.startswith("<new_layer_"):
-            if i + 3 >= len(out_tokens):
-                break
-            cleaned.extend([
-                out_tokens[i],
-                out_tokens[i + 1],
-                out_tokens[i + 2],
-                out_tokens[i + 3],
-            ])
-            i += 4
-            continue
-
-        i += 1
-
+    for token in out_tokens:
+        cleaned.append(token)
+        if token == END_CIRCUIT_TOKEN:
+            return cleaned
     return cleaned
 
 
 checkpoint = torch.load(
     os.path.join(out_dir, checkpoint_file),
-    map_location=device
+    map_location=device,
 )
 
 gptconf = GPTConfig(
@@ -468,49 +379,19 @@ model.to(device)
 
 
 def generate_one_llm_circuit(prompt_tokens):
-    n_qubits = get_num_qubits_from_graph_tokens(prompt_tokens)
-    allowed_op_ids = set(
-        allowed_op_token_ids(n_qubits, KINGSTON_7Q_COUPLING_MAP, stoi)
-    )
-
     x = encode(prompt_tokens)[None, :].to(device)
-    generated = prompt_tokens.copy()
-    x_step = x
 
     with torch.no_grad():
-        for _ in range(max_new_tokens):
-            idx_cond = (
-                x_step
-                if x_step.size(1) <= model.config.block_size
-                else x_step[:, -model.config.block_size:]
-            )
+        y = model.generate(
+            x,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            top_k=top_k,
+        )
 
-            logits, _ = model(idx_cond)
-            logits = logits[:, -1, :] / temperature
-
-            if is_next_token_op_index(generated[-1]):
-                mask = torch.full_like(logits, -float("Inf"))
-                if allowed_op_ids:
-                    allowed_list = list(allowed_op_ids)
-                    mask[:, allowed_list] = logits[:, allowed_list]
-                logits = mask
-
-            if top_k is not None:
-                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
-                logits[logits < v[:, [-1]]] = -float("Inf")
-
-            probs = torch.nn.functional.softmax(logits, dim=-1)
-            idx_next = torch.multinomial(probs, num_samples=1)
-
-            x_step = torch.cat((x_step, idx_next), dim=1)
-            next_token = itos[idx_next.item()]
-            generated.append(next_token)
-
-            if next_token == STOP_TOKEN and len(generated) > len(prompt_tokens):
-                break
-
-    out_tokens = generated[len(prompt_tokens):]
-    return trim_generated_circuit(out_tokens)
+    out_tokens = decode(y[0].tolist())
+    generated_tokens = out_tokens[len(prompt_tokens):]
+    return trim_generated_circuit(generated_tokens)
 
 #########################################################
 # TIMING + PLOTTING
@@ -525,26 +406,21 @@ def plot_times(graph_ids, adapt_times, llm_times, output_path):
     fig, ax = plt.subplots(figsize=(13, 6.5))
 
     if PLOT_MODE == "stacked":
-        # QAOA-GPT on the bottom
         ax.bar(x, llm_times, width, label="QAOA-GPT")
         ax.bar(x, adapt_times, width, bottom=llm_times, label="ADAPT-QAOA")
     else:
         w = 0.38
-        ax.bar(x - w/2, llm_times, w, label="QAOA-GPT")
-        ax.bar(x + w/2, adapt_times, w, label="ADAPT-QAOA")
+        ax.bar(x - w / 2, llm_times, w, label="QAOA-GPT")
+        ax.bar(x + w / 2, adapt_times, w, label="ADAPT-QAOA")
 
     ax.set_xlabel("Circuit / graph ID", fontsize=LABEL_FONT_SIZE)
     ax.set_ylabel("Generation time (seconds)", fontsize=LABEL_FONT_SIZE)
-    ax.set_title("Circuit Generation Time: QAOA-GPT vs ADAPT-QAOA")
     ax.set_xticks(x)
     ax.set_xticklabels(graph_ids, rotation=45)
     ax.tick_params(axis="both", labelsize=TICK_FONT_SIZE)
 
-    # Keep the normal axis range, but ensure ticks from 0.1 to 0.9 are present
-    ymin, ymax = ax.get_ylim()
     forced_ticks = [0.5]
     existing_ticks = list(ax.get_yticks())
-
     combined_ticks = sorted(set(existing_ticks + forced_ticks))
     ax.set_yticks(combined_ticks)
 
@@ -554,6 +430,7 @@ def plot_times(graph_ids, adapt_times, llm_times, output_path):
     fig.tight_layout()
     fig.savefig(output_path, dpi=300, bbox_inches="tight")
     plt.close(fig)
+
 #########################################################
 # MAIN
 #########################################################
@@ -566,7 +443,7 @@ def main():
     llm_times = []
     results = []
 
-    print(f"Timing {NUM_GRAPHS} graphs...\n")
+    print(f"Timing {NUM_GRAPHS} trans graphs...\n")
 
     for idx, item in enumerate(prompts, start=1):
         prompt_tokens = item["tokens"]
@@ -577,7 +454,6 @@ def main():
 
         print(f"{graph_id}: source line {item['source_line']}")
 
-        # compute brute-force optimum outside the timed ADAPT block
         opt_val = maxcut_opt_bruteforce(G)
 
         t0 = time.perf_counter()
@@ -591,6 +467,8 @@ def main():
         adapt_times.append(adapt_elapsed)
         llm_times.append(llm_elapsed)
 
+        layer_tokens = [tok for tok in llm_result if tok.startswith("<new_layer_")]
+
         results.append({
             "graph_id": graph_id,
             "source_line": item["source_line"],
@@ -598,7 +476,7 @@ def main():
             "llm_time_seconds": llm_elapsed,
             "adapt_num_layers": len(adapt_result[0]) if adapt_result is not None else None,
             "adapt_ar": float(adapt_result[3]) if adapt_result is not None else None,
-            "llm_num_layers": len(llm_result) // 4 if llm_result is not None else None,
+            "llm_num_layers": len(layer_tokens) if llm_result is not None else None,
         })
 
         print(f"  ADAPT-QAOA (no brute force): {adapt_elapsed:.4f}s")

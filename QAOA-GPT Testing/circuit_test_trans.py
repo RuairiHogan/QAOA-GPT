@@ -222,4 +222,4 @@ def test_all_circuits(test_file):
 
 
 if __name__ == "__main__":
-    test_all_circuits("IBM_Hardware_Trans/generated_circuits_trans_20.txt")
+    test_all_circuits("IBM_Hardware_Trans/generated_circuits_trans_optimal_50.txt")

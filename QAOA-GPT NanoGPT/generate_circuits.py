@@ -10,8 +10,8 @@ from datetime import datetime
 # ---------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-INPUT_FILE = os.path.join(BASE_DIR, ".." , "QAOA-GPT Testing", "test_graphs_og_250.txt")
-OUTPUT_FILE = os.path.join(BASE_DIR,  ".." , "QAOA-GPT Testing", "generated_circuits_og_250.txt")
+INPUT_FILE = os.path.join(BASE_DIR, ".." , "QAOA-GPT Testing", "test_graphs_21.txt")
+OUTPUT_FILE = os.path.join(BASE_DIR,  ".." , "QAOA-GPT Testing", "generated_circuits_21.txt")
 
 out_dir = "out-qaoa"
 data_dir = "data/qaoa"

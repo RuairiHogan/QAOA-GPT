@@ -217,5 +217,5 @@ def test_all_circuits(test_file):
 
 
 if __name__ == "__main__":
-    test_all_circuits("generated_circuits_og_20.txt")
+    test_all_circuits("generated_circuits_21.txt")
 
