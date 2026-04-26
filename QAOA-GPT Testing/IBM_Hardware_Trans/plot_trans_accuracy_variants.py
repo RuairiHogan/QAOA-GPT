@@ -135,7 +135,7 @@ def make_plot_sorted(approx_ratios, output_path):
     plt.close(fig)
 
 
-def make_histogram(approx_ratios, output_path, distribution_label, color=POINT_COLOR):
+def make_histogram(approx_ratios, output_path, distribution_label, color=POINT_COLOR, x_limits=None):
     mean_ar = float(np.mean(approx_ratios))
     median_ar = float(np.median(approx_ratios))
 
@@ -143,6 +143,7 @@ def make_histogram(approx_ratios, output_path, distribution_label, color=POINT_C
     ax.hist(
         approx_ratios,
         bins=18,
+        range=x_limits,
         color=color,
         edgecolor=ACCENT_COLOR,
         alpha=0.82,
@@ -168,6 +169,8 @@ def make_histogram(approx_ratios, output_path, distribution_label, color=POINT_C
     ax.grid(True, linestyle="--", alpha=0.35)
     ax.tick_params(axis="both", labelsize=TICK_FONT_SIZE)
     ax.legend(frameon=True, fontsize=LEGEND_FONT_SIZE)
+    if x_limits is not None:
+        ax.set_xlim(*x_limits)
 
     fig.tight_layout()
     fig.savefig(output_path, dpi=300, bbox_inches="tight")
@@ -226,6 +229,10 @@ def make_boxstrip_plot(approx_ratios, output_path):
 def main():
     approx_ratios = load_approx_ratios(INPUT_JSON, "trans")
     approx_ratios_og = load_approx_ratios(INPUT_JSON, "old")
+    shared_hist_x_limits = (
+        float(min(np.min(approx_ratios), np.min(approx_ratios_og))),
+        float(max(np.max(approx_ratios), np.max(approx_ratios_og))),
+    )
 
     make_plot_by_index(approx_ratios, OUTPUT_PLOT_INDEX)
     make_plot_sorted(approx_ratios, OUTPUT_PLOT_SORTED)
@@ -234,12 +241,14 @@ def main():
         OUTPUT_PLOT_HIST,
         "Transpilation-aware GPT AR distribution",
         color=HIST_TRANS_COLOR,
+        x_limits=shared_hist_x_limits,
     )
     make_histogram(
         approx_ratios_og,
         OUTPUT_PLOT_HIST_OG,
         "Unconstrained GPT AR distribution",
         color=HIST_OG_COLOR,
+        x_limits=shared_hist_x_limits,
     )
     make_boxstrip_plot(approx_ratios, OUTPUT_PLOT_BOX)
 
